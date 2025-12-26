@@ -1779,9 +1779,15 @@ function normalizeTeamId(raw) {
 
 async function loadTeamDoc(teamId) {
     if (!teamId) return null;
-    const snap = await col.team(teamId).get();
-    return snap.exists ? snap.data() : null;
+    try {
+        const snap = await col.team(teamId).get();
+        return snap.exists ? { id: snap.id, ...snap.data() } : null;
+    } catch (e) {
+        console.warn("loadTeamDoc failed:", e);
+        return null;
+    }
 }
+
 
 async function refreshMyTeamsList() {
   const listEl = document.getElementById("my-teams-list");
