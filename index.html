@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Team-Hub</title>
+        <link rel="icon" href="favicon.ico" type="image/x-icon" />
+        <!-- 外部CSS -->
+        <link rel="stylesheet" href="style.css" />
+
+        <!-- Firebase SDK -->
+        <script defer src="/__/firebase/12.6.0/firebase-app-compat.js"></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-auth-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-database-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-firestore-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-functions-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-messaging-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-storage-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-analytics-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-remote-config-compat.js"
+        ></script>
+        <script
+            defer
+            src="/__/firebase/12.6.0/firebase-performance-compat.js"
+        ></script>
+        <script defer src="/__/firebase/init.js?useEmulator=false"></script>
+        <!-- LIFF SDK (LINEログイン用。ブラウザ単体でも動くようにガードします) -->
+        <script
+            defer
+            src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+        ></script>
+    </head>
+    <body>
+        <div id="app">
+            <h1>Team-Hub</h1>
+            <!-- Auth bar (匿名ログイン + Google連携) -->
+            <div id="auth-bar" class="auth-bar">
+                <span id="auth-status">ログイン確認中...</span>
+                <button id="auth-google-link-btn" type="button">
+                    Google連携
+                </button>
+                <button id="auth-edit-name-btn" type="button">
+                    表示名変更
+                </button>
+            </div>
+
+            <!-- 一覧画面（eventId なしのときに表示） -->
+            <div id="event-list-view">
+                <h2>イベント一覧</h2>
+                <p>参加する試合・練習・イベントを選んでください。</p>
+                <!-- チーム（SaaS化用）：作成 / 参加 / 切替 -->
+                <div id="team-card" class="card" style="margin-top: 12px">
+                    <div class="team-row">
+                        <div>
+                            <div class="muted">現在のチーム</div>
+                            <div id="current-team-label" class="team-label">
+                                未選択
+                            </div>
+                            <div id="current-team-id" class="muted small"></div>
+                        </div>
+                        <div class="team-actions">
+                            <button
+                                id="copy-team-url-btn"
+                                class="pill-button"
+                                type="button"
+                            >
+                                共有リンクをコピー
+                            </button>
+                            <button
+                                id="open-team-panel-btn"
+                                class="pill-button"
+                                type="button"
+                            >
+                                チーム作成/参加/切替
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="team-panel" class="team-panel hidden">
+                        <div class="team-panel-grid">
+                            <div class="team-panel-col">
+                                <h3>参加中のチーム</h3>
+                                <div id="my-teams-list" class="my-teams-list">
+                                    読み込み中…
+                                </div>
+                            </div>
+
+                            <div class="team-panel-col">
+                                <h3>チーム作成</h3>
+                                <div class="form-row">
+                                    <label>チーム名</label>
+                                    <input
+                                        id="create-team-name"
+                                        type="text"
+                                        placeholder="例：東京Eleftis"
+                                    />
+                                </div>
+
+                                <div class="form-row">
+                                    <label>競技</label>
+                                    <select id="create-team-sport">
+                                        <option value="baseball">野球</option>
+                                        <option value="soccer">サッカー</option>
+                                        <option value="basketball">
+                                            バスケ
+                                        </option>
+                                        <option value="other">その他</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-row">
+                                    <label>参加方式（後で切替できます）</label>
+                                    <select id="create-team-joinmode">
+                                        <option value="open">
+                                            オープン（申請→承認）
+                                        </option>
+                                        <option value="invite">
+                                            招待制（後で実装）
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <button
+                                    id="create-team-btn"
+                                    class="pill-button"
+                                    type="button"
+                                >
+                                    チームを作成
+                                </button>
+                                <div
+                                    id="create-team-result"
+                                    class="muted small"
+                                ></div>
+                            </div>
+
+                            <div class="team-panel-col">
+                                <h3>チーム参加</h3>
+                                <div class="form-row">
+                                    <label>teamId</label>
+                                    <input
+                                        id="join-team-id"
+                                        type="text"
+                                        placeholder="例：abc123..."
+                                    />
+                                </div>
+                                <button
+                                    id="join-team-btn"
+                                    class="pill-button"
+                                    type="button"
+                                >
+                                    teamId を指定して開く
+                                </button>
+                                <div
+                                    id="join-team-result"
+                                    class="muted small"
+                                ></div>
+
+                                <div
+                                    class="muted small"
+                                    style="margin-top: 10px"
+                                >
+                                    ※参加方式が「オープン」のチームは、リンクを開いた後に「参加申請」→管理者承認で参加できます。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 非メンバー時：参加申請 -->
+                <div
+                    id="join-request-card"
+                    class="card hidden"
+                    style="margin-top: 12px"
+                >
+                    <h2>このチームへの参加</h2>
+                    <div id="join-request-team" class="muted"></div>
+                    <p style="font-size: 12px; margin-bottom: 8px">
+                        このチームは「オープン（申請→承認）」方式です。参加申請後、管理者の承認で参加できます。
+                    </p>
+                    <button
+                        id="join-request-btn"
+                        class="pill-button"
+                        type="button"
+                    >
+                        参加申請する
+                    </button>
+                    <div
+                        id="join-request-msg"
+                        class="muted small"
+                        style="margin-top: 6px"
+                    ></div>
+                </div>
+
+                <!-- 自分用のまとめ入力ボタン -->
+                <button id="open-my-attendance-btn" style="margin-bottom: 8px">
+                    自分の出欠をまとめて登録する
+                </button>
+
+                <!-- イベント一覧 -->
+                <div id="event-list">読み込み中…</div>
+
+                <!-- みんなのメモ -->
+                <div id="memo-card" class="card" style="margin-top: 24px">
+                    <h2>みんなのメモ</h2>
+                    <p style="font-size: 12px; margin-bottom: 8px">
+                        共有したいひとことメモを書いてください。
+                    </p>
+
+                    <div class="memo-input">
+                        <textarea
+                            id="memo-input"
+                            rows="3"
+                            placeholder="例：体調不良予定のため欠席（✖）"
+                        ></textarea>
+                        <button id="memo-submit-btn" class="pill-button">
+                            メモを投稿する
+                        </button>
+                    </div>
+
+                    <div id="memo-list">まだメモはありません。</div>
+
+                    <button
+                        id="memo-load-more-btn"
+                        class="ghost-button"
+                        style="margin-top: 8px"
+                    >
+                        もっと見る
+                    </button>
+                </div>
+
+                <!-- 出席率ランキング（管理者用） -->
+                <div id="stats-panel" class="card" style="margin-top: 24px">
+                    <h2>出席率ランキング</h2>
+                    <p class="note-text">
+                        ※ 管理者だけボタンが表示されます。<br />
+                        ※ 「出席」と「遅刻」を参加としてカウントします。
+                    </p>
+                    <button id="load-stats-btn" class="pill-button">
+                        出席率を集計する
+                    </button>
+
+                    <div id="stats-result" style="margin-top: 8px">
+                        未集計です。
+                    </div>
+                </div>
+
+                <!-- イベント削除（管理者専用） -->
+                <div
+                    id="admin-event-delete"
+                    class="card"
+                    style="margin-top: 24px; display: none"
+                >
+                    <h2>イベント削除（管理者専用）</h2>
+                    <p>
+                        間違って追加したイベントを削除できます。<br />
+                        ※関連する出欠データもすべて削除されます。
+                    </p>
+
+                    <label for="delete-event-select">削除するイベント：</label>
+                    <select id="delete-event-select">
+                        <option value="">
+                            -- イベントを選択してください --
+                        </option>
+                    </select>
+
+                    <div style="margin-top: 8px">
+                        <button
+                            id="admin-delete-btn"
+                            class="pill-button"
+                            style="background: #b12234"
+                        >
+                            選択したイベントを削除する
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 管理者用：イベント追加 / 編集 -->
+                <div
+                    id="admin-panel"
+                    class="card"
+                    style="margin-top: 24px; display: none"
+                >
+                    <h2>管理者用：イベント追加 / 編集</h2>
+                    <p style="font-size: 12px; margin-bottom: 4px">
+                        ※
+                        管理者アカウントでアクセスしたときだけ表示されます。<br />
+                        「編集するイベント」を選ぶと、下のフォームに内容が読み込まれます。
+                        何も選ばなければ新規追加になります。
+                    </p>
+                    <hr style="margin: 16px 0" />
+                    <h3>参加申請（承認待ち）</h3>
+                    <p style="font-size: 12px; margin-bottom: 8px">
+                        ※「参加申請」されたユーザーを承認すると members
+                        に追加されます。
+                    </p>
+                    <div id="admin-join-requests" class="admin-join-requests">
+                        <div id="admin-join-requests-list" class="muted">
+                            読み込み中…
+                        </div>
+                    </div>
+
+                    <!-- 編集対象イベントのセレクト -->
+                    <div style="margin-bottom: 8px">
+                        <label for="admin-edit-select">
+                            編集するイベント（任意）
+                        </label>
+                        <select id="admin-edit-select">
+                            <option value="">新規作成（何も選択しない）</option>
+                        </select>
+                    </div>
+
+                    <!-- 入力フォーム -->
+                    <div
+                        style="display: flex; flex-direction: column; gap: 6px"
+                    >
+                        <label>
+                            イベントID（英数字推奨）
+                            <input
+                                id="admin-event-id"
+                                type="text"
+                                placeholder="例: 20xx-xx-xx-practice"
+                            />
+                        </label>
+
+                        <label>
+                            試合名 / 練習名（title）
+                            <input
+                                id="admin-title"
+                                type="text"
+                                placeholder="例: 練習試合 vs ○○"
+                            />
+                        </label>
+
+                        <label>
+                            種別（type）
+                            <select id="admin-type">
+                                <option value="">選択なし</option>
+                                <option value="official">公式戦</option>
+                                <option value="practiceGame">練習試合</option>
+                                <option value="practice">練習</option>
+                                <option value="event">イベント・その他</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            日付（date）
+                            <input id="admin-date" type="date" />
+                        </label>
+
+                        <label>
+                            時間（time）
+                            <input
+                                id="admin-time"
+                                type="text"
+                                placeholder="00:00-23:00"
+                            />
+                        </label>
+
+                        <label>
+                            場所（place）
+                            <input
+                                id="admin-place"
+                                type="text"
+                                placeholder="阪神甲子園球場"
+                            />
+                        </label>
+
+                        <label>
+                            メモ（note）
+                            <input
+                                id="admin-note"
+                                type="text"
+                                placeholder="集合14:30 / 現地解散"
+                            />
+                        </label>
+
+                        <button
+                            id="admin-save-btn"
+                            class="pill-button"
+                            style="margin-top: 8px"
+                        >
+                            イベントを保存
+                        </button>
+                    </div>
+
+                    <p
+                        id="admin-message"
+                        style="
+                            font-size: 12px;
+                            white-space: pre-wrap;
+                            margin-top: 8px;
+                        "
+                    ></p>
+                </div>
+            </div>
+            <!-- /#event-list-view -->
+
+            <!-- 自分の出欠をまとめて登録する画面（最初は非表示） -->
+            <div
+                id="my-attendance-view"
+                style="display: none; margin-top: 16px"
+            >
+                <button id="back-to-events-btn" style="margin-bottom: 8px">
+                    ← イベント一覧に戻る
+                </button>
+
+                <h2>自分の出欠一覧</h2>
+                <p style="font-size: 12px">
+                    各イベントの出欠をまとめて登録できます。
+                </p>
+
+                <div id="my-attendance-table">読み込み中…</div>
+            </div>
+
+            <!-- イベント詳細画面（eventId ありのときに表示） -->
+            <div id="event-detail-view" style="display: none; margin-top: 16px">
+                <button id="back-to-list-btn" style="margin-bottom: 8px">
+                    ← イベント一覧に戻る
+                </button>
+
+                <h2>次の試合</h2>
+                <div id="event-info">読み込み中…</div>
+
+                <div id="buttons" style="margin-top: 8px">
+                    <button data-status="present">◎ 出席</button>
+                    <button data-status="late">〇 遅刻</button>
+                    <button data-status="undecided">△ 未定</button>
+                    <button data-status="absent">✖ 欠席</button>
+                </div>
+
+                <h2 style="margin-top: 16px">メンバーの出欠状況</h2>
+
+                <div
+                    id="attendance-summary"
+                    style="font-size: 12px; margin-bottom: 4px"
+                >
+                    ◎ 出席: <span id="sum-present">0</span>人　 〇 遅刻:<span
+                        id="sum-late"
+                        >0</span
+                    >人　 △ 未定:<span id="sum-undecided">0</span>人　 ✖
+                    欠席:<span id="sum-absent">0</span>人　 未回答:<span
+                        id="sum-noresp"
+                        >0</span
+                    >人　
+                </div>
+
+                <div id="attendance-list">読み込み中…</div>
+
+                <!-- オーダー（守備・打順）ブロック -->
+                <div id="lineup-block" style="display: none; margin-top: 16px">
+                    <h2>オーダー（守備・打順）</h2>
+                    <p class="note-text">
+                        公式戦・練習試合のときに使用します。<br />
+                        出席（◎）・遅刻（〇）になっているメンバーだけ選択できます。
+                    </p>
+
+                    <!-- JS で中身が描画されるコンテナ -->
+                    <div id="lineup-editor">読み込み中…</div>
+
+                    <button
+                        id="lineup-save-btn"
+                        class="pill-button"
+                        style="margin-top: 8px"
+                    >
+                        オーダーを保存する
+                    </button>
+                </div>
+
+                <hr />
+            </div>
+        </div>
+        <!-- アプリ本体 -->
+        <script defer src="app.js"></script>
+    </body>
+</html>

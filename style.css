@@ -1,0 +1,887 @@
+:root {
+    --primary: #c62828; /* チームカラー系の赤 */
+    --primary-light: #ffebee; /* 薄い赤 */
+    --primary-dark: #8e0000;
+    --accent: #ffb300; /* 強調用の黄色 */
+    --bg-gray: #f5f5f5;
+    --card-border: #e0e0e0;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    background: linear-gradient(135deg, #ffe9eb, #f5f5f5);
+}
+
+#app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 32px;
+    background: #ffffff;
+    min-height: 100vh;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+}
+
+h1 {
+    font-size: 22px;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--primary-dark);
+}
+
+h1::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--primary);
+}
+
+h2 {
+    font-size: 16px;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    color: #333;
+    border-left: 4px solid var(--primary);
+    padding-left: 8px;
+}
+
+p {
+    margin: 4px 0;
+    color: #444;
+    font-size: 14px;
+}
+
+#event-list-view,
+#event-detail-view {
+    margin-top: 8px;
+}
+
+/* イベント一覧のカード風テーブル */
+#event-list {
+    margin-top: 8px;
+}
+
+#event-list table {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--card-border);
+}
+
+#event-list td button {
+    padding: 4px 10px;
+    font-size: 13px;
+}
+
+/* 出席率ランキングの枠 */
+#stats-panel {
+    margin-top: 24px;
+    padding: 12px 10px;
+    border-radius: 8px;
+    background: var(--primary-light);
+    border: 1px solid #ffcdd2;
+    display: none;
+}
+
+#stats-panel h2 {
+    border-left-color: var(--accent);
+}
+
+#stats-result {
+    font-size: 13px;
+    overflow-x: auto;
+}
+
+/* イベント情報 */
+#event-info p {
+    margin: 4px 0;
+}
+
+/* ボタン共通 */
+button {
+    border-radius: 999px;
+    border: none;
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    background: #eeeeee;
+    color: #424040;
+    transition: background 0.15s ease, transform 0.05s ease,
+        box-shadow 0.15s ease;
+}
+
+button:hover {
+    background: #e0e0e0;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* 出欠ボタン周り */
+#buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+#buttons button {
+    flex: 1 1 calc(50% - 8px);
+}
+
+/* ステータス別の色付け */
+#buttons button[data-status="present"] {
+    background: #c8e6c9;
+    color: #1b5e20;
+}
+#buttons button[data-status="present"]:hover {
+    background: #a5d6a7;
+}
+
+#buttons button[data-status="late"] {
+    background: #fff3cd;
+    color: #8d6e00;
+}
+#buttons button[data-status="late"]:hover {
+    background: #ffe082;
+}
+
+#buttons button[data-status="undecided"] {
+    background: #e3f2fd;
+    color: #0d47a1;
+}
+#buttons button[data-status="undecided"]:hover {
+    background: #bbdefb;
+}
+
+#buttons button[data-status="absent"] {
+    background: #ffcdd2;
+    color: #b71c1c;
+}
+#buttons button[data-status="absent"]:hover {
+    background: #ef9a9a;
+}
+
+/* 出欠一覧テーブル */
+#attendance-list {
+    margin-top: 8px;
+    font-size: 14px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    border: 1px solid #e0e0e0;
+    padding: 4px 6px;
+    font-size: 13px;
+    text-align: left;
+}
+
+th {
+    background: #fce4ec;
+    color: #5d0225;
+}
+
+/* 一括出欠登録画面用ボタン */
+.my-att-btn {
+    min-width: 32px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid #ccc;
+    background: #f7f7f7;
+    cursor: pointer;
+}
+
+/* 選択されているボタン */
+.my-att-btn.selected {
+    background: #ffe5ec;
+    border-color: #e25c7c;
+}
+
+/* 「現在：◎ 出席」の表示部分 */
+.my-att-status-label {
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+tr:nth-child(even) td {
+    background: #fafafa;
+}
+
+/* カード共通 */
+.card {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #fff5f7;
+    border: 1px solid #f5c3cf;
+}
+
+/* メモ入力まわり */
+.memo-input textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    padding: 6px;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.memo-input .pill-button {
+    margin-top: 6px;
+}
+
+/* メモ1件分 */
+.memo-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f5d3dd;
+    background: #ffffff;
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.memo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.memo-author {
+    font-weight: bold;
+    color: #b12234;
+    font-size: 12px;
+}
+
+.memo-date {
+    font-size: 11px;
+    color: #999;
+}
+
+.memo-header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.memo-body {
+    font-size: 13px;
+    line-height: 1.7;
+    max-height: 3.4em; /* 2行ぶんくらい */
+    overflow: hidden;
+}
+
+.memo-body.expanded {
+    max-height: none;
+}
+
+.memo-toggle-btn {
+    margin-top: 4px;
+    font-size: 11px;
+    background: none;
+    border: none;
+    color: #b12234;
+    cursor: pointer;
+    padding: 0;
+}
+
+.memo-delete-btn {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.memo-delete-btn:hover {
+    color: #e55353;
+}
+
+/* ボタン系 */
+.pill-button {
+    padding: 6px 16px;
+    border-radius: 999px;
+    border: none;
+    background: #b12234;
+    color: #fff;
+    font-size: 13px;
+}
+
+.ghost-button {
+    padding: 6px 16px;
+    border-radius: 999px;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-size: 13px;
+}
+
+/* 管理者パネル */
+#admin-panel {
+    margin-top: 16px;
+    padding: 12px 10px;
+    border-radius: 8px;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    display: none;
+}
+
+#admin-panel input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+#admin-panel label {
+    font-size: 13px;
+}
+
+#admin-save-btn {
+    background: var(--primary);
+    color: rgba(8, 8, 8, 0.533);
+    font-weight: 600;
+}
+
+#admin-save-btn:hover {
+    background: var(--primary-dark);
+}
+
+/* 戻るボタン */
+#back-to-list-btn {
+    background: #eeeeee;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+}
+
+/* 小さめの注意書き */
+small,
+.note-text,
+#stats-panel p,
+#admin-panel p {
+    font-size: 12px;
+    color: #666;
+}
+
+/* イベント一覧内のタイトルとサブ情報 */
+.event-main-title {
+    font-weight: 600;
+}
+
+.event-sub-info {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+    line-height: 1.4;
+}
+
+/* 日付・参加人数をスマホでは2段に見せる用 */
+.event-date,
+.event-stats {
+    text-align: center;
+}
+
+/* モバイル：縦並び ＝ 2行表示 */
+.event-date-year,
+.event-date-md,
+.event-stats-main,
+.event-stats-detail {
+    display: block;
+}
+
+/* ▼ 過去イベントのアコーディオン表示 */
+.past-events {
+    margin-top: 16px;
+}
+
+/* 見出し部分（タップするところ） */
+.past-events > summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: #ffe8e8;
+    border-radius: 8px;
+    border: 1px solid #f0b3b3;
+    font-weight: 600;
+    color: #c33;
+    cursor: pointer;
+    list-style: none;
+}
+
+/* 開いているときは少し濃い色に */
+.past-events[open] > summary {
+    background: #ffdcdc;
+}
+
+/* iOS Safari などの ▸ マーカーを消す */
+.past-events > summary::-webkit-details-marker {
+    display: none;
+}
+
+/* 左側に矢印アイコンを表示 */
+.past-events > summary::before {
+    content: "▶";
+    font-size: 10px;
+    transform: rotate(0deg);
+    transition: transform 0.2s;
+}
+
+/* 開いたときは矢印を下向きに */
+.past-events[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+/* ▼ 日付と参加人数を「ちょうど2段」にして、途中で折り返させない */
+.event-date,
+.event-count {
+    text-align: center;
+    vertical-align: middle;
+    padding: 4px 6px;
+}
+
+/* 1段目（年／人数） */
+.event-date div:first-child,
+.event-count div:first-child {
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+/* 2段目（月日／（◎◯）） */
+.event-date div:last-child,
+.event-count div:last-child {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* スマホで少しだけ文字を小さめに */
+@media (max-width: 480px) {
+    table th,
+    table td {
+        font-size: 12px;
+    }
+}
+
+/* 画面が広いとき（PC / タブレット横）は1行風に並べる */
+@media (min-width: 768px) {
+    .event-date-year,
+    .event-date-md,
+    .event-stats-main,
+    .event-stats-detail {
+        display: inline;
+    }
+
+    .event-date-year {
+        margin-right: 2px;
+    }
+
+    .event-stats-detail {
+        margin-left: 4px;
+    }
+}
+
+/* --- 自分の出欠一覧ボタン --- */
+
+.my-att-btn {
+    min-width: 32px;
+    border-radius: 16px;
+    border: 1px solid #ddd;
+    padding: 2px 6px;
+    background: #fff;
+    font-size: 14px;
+}
+
+.my-att-btn.is-present {
+    background: #e6f6e9;
+    border-color: #5cb85c;
+}
+
+.my-att-btn.is-late {
+    background: #fff5d6;
+    border-color: #f0ad4e;
+}
+
+.my-att-btn.is-undecided {
+    background: #e5f0ff;
+    border-color: #5bc0de;
+}
+
+.my-att-btn.is-absent {
+    background: #ffe3e3;
+    border-color: #d9534f;
+}
+
+.my-att-status-label {
+    margin-left: 4px;
+    font-size: 12px;
+}
+
+.my-att-table {
+    margin-top: 8px;
+}
+
+/* === オーダー（ラインナップ）エリア === */
+
+#lineup-block {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+}
+
+.lineup-system-row {
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.lineup-system-row select {
+    margin-left: 4px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 13px;
+}
+
+.lineup-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+}
+
+.lineup-table th,
+.lineup-table td {
+    font-size: 12px;
+    padding: 4px 6px;
+}
+
+.lineup-table th {
+    background: #e1f0ff;
+}
+
+.lineup-table select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 12px;
+}
+
+@media (max-width: 480px) {
+    .lineup-table th,
+    .lineup-table td {
+        font-size: 11px;
+    }
+}
+
+.lineup-publish-row {
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.lineup-memo-row {
+    margin-top: 8px;
+}
+
+#lineup-memo {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 12px;
+    resize: vertical;
+}
+
+.lineup-memo-display {
+    margin-top: 8px;
+    font-size: 12px;
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px;
+    border: 1px dashed #90caf9;
+}
+
+/* === Layout helpers (moved from inline styles in index.html) === */
+
+#open-my-attendance-btn {
+    margin-bottom: 8px;
+}
+
+#memo-card {
+    margin-top: 24px;
+}
+
+#memo-list {
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+#memo-load-more-btn {
+    margin-top: 8px;
+    display: none;
+}
+
+#stats-result {
+    margin-top: 8px;
+}
+
+#admin-event-delete {
+    display: none;
+}
+
+.admin-delete-actions {
+    margin-top: 8px;
+}
+
+.admin-form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#admin-save-btn {
+    margin-top: 8px;
+}
+
+#admin-message {
+    font-size: 12px;
+    white-space: pre-wrap;
+    margin-top: 8px;
+}
+
+#my-attendance-view {
+    display: none;
+    margin-top: 16px;
+}
+
+#back-to-events-btn {
+    margin-bottom: 8px;
+}
+
+.small-text {
+    font-size: 12px;
+}
+
+#event-detail-view {
+    display: none;
+}
+
+#attendance-summary {
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+/* メモ説明文用：下に少し余白を取る */
+.memo-description {
+    margin-bottom: 8px;
+}
+
+/* 管理者パネル（イベント編集用） */
+#admin-edit-select,
+#admin-type {
+    width: 100%;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+#admin-panel label[for="admin-edit-select"],
+#admin-panel .admin-edit-select-text {
+    font-size: 12px;
+}
+
+
+/* ===== Auth bar ===== */
+.auth-bar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-end;
+  margin:8px 0 12px;
+}
+.auth-bar #auth-status{
+  font-size:12px;
+  opacity:.8;
+}
+.auth-bar button{
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid var(--card-border, #ddd);
+  background:#fff;
+  cursor:pointer;
+}
+.auth-bar button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+
+/* === My attendance view === */
+.my-attendance-row {
+    margin: 10px 0;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 10px;
+}
+
+.my-attendance-row .event-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.my-attendance-row .event-meta {
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.my-attendance-row .event-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.my-attendance-row .current-status {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+
+/* ===== Team UI (SaaS化) ===== */
+
+.muted { opacity: 0.75; }
+.small { font-size: 12px; }
+
+.team-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.team-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.team-label{
+  font-size:18px;
+  font-weight:700;
+}
+
+.team-panel{
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid rgba(0,0,0,0.12);
+}
+
+.hidden{ display:none !important; }
+
+.team-panel-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:14px;
+}
+
+@media (min-width: 860px){
+  .team-panel-grid{ grid-template-columns: 1fr 1fr 1fr; }
+}
+
+.team-panel-col h3{
+  margin:0 0 10px 0;
+}
+
+.form-row{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-bottom:10px;
+}
+
+.form-row label{
+  font-size:12px;
+  opacity:0.8;
+}
+
+.my-teams-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.team-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px;
+  border:1px solid rgba(0,0,0,0.12);
+  border-radius:10px;
+}
+
+.team-item .meta{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.team-item .meta .name{ font-weight:700; }
+.team-item .meta .id{
+  font-size:12px;
+  opacity:0.75;
+  word-break:break-all;
+}
+
+.admin-join-requests .req-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px;
+  border:1px solid rgba(0,0,0,0.12);
+  border-radius:10px;
+  margin-bottom:8px;
+}
+
+.admin-join-requests .req-item .meta{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.admin-join-requests .req-item .meta .uid{
+  font-size:12px;
+  opacity:0.75;
+  word-break:break-all;
+}
