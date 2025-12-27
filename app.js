@@ -212,6 +212,18 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
+function isPermissionDenied(error) {
+    const code = error?.code || "";
+    const message = error?.message || "";
+    return (
+        code === "permission-denied" ||
+        message.includes("Missing or insufficient permissions")
+    );
+}
+
+// Backward-compatible alias to avoid ReferenceError in older call sites.
+const isPermissionDeniedError = isPermissionDenied;
+
 /**
  * 画面の「ログイン/連携」UI を初期化
  * - 初回は匿名ログイン（signInAnonymously）
@@ -1783,9 +1795,9 @@ async function loadTeamDoc(teamId) {
         const snap = await col.team(teamId).get();
         return snap.exists ? { id: snap.id, ...snap.data() } : null;
     } catch (e) {
-        if (!isPermissionDeniedError(e)) {
-            console.warn("loadTeamDoc failed:", e);
-        }
+        if (!isPermissionDenied(e)) {
+    console.warn("loadTeamDoc failed:", e);
+}
         return null;
     }
 }
@@ -1854,9 +1866,9 @@ async function refreshMyTeamsList() {
 
     return myTeams;
   }  catch (e) {
-    if (!isPermissionDeniedError(e)) {
-      console.warn("refreshMyTeamsList failed (ignored):", e);
-    }
+    if (!isPermissionDenied(e)) {
+    console.warn("refreshMyTeamsList failed (ignored):", e);
+}
     listEl.textContent = "参加中のチームはありません。";
     return [];
   }
@@ -2349,9 +2361,9 @@ async function loadMyMemberInfoReadOnly(teamId) {
     currentUserRole = data.role || "member";
     return true;
   } catch (e) {
-    if (!isPermissionDeniedError(e)) {
-      console.error("loadMyMemberInfoReadOnly failed:", e);
-    }
+    if (!isPermissionDenied(e)) {
+    console.error("loadMyMemberInfoReadOnly failed:", e);
+}
     currentUserRole = "guest";
     return false;
   }
