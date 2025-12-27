@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function teamRef(teamId) {
+      return /databases/$(database)/documents/teams/$(teamId);
+    }
+    function teamExists(teamId) { return exists(teamRef(teamId)); }
+
+    function isMember(teamId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
+    }
+
+    function myRole(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin(teamId) {
+      return isMember(teamId) && (myRole(teamId) in ["owner","admin"]);
+    }
+
+   match /teams/{teamId} {
+  match /members/{uid} {
+    // 自分の members/{uid} は読める + それ以外はチームメンバーのみ
+    allow read: if (signedIn() && request.auth.uid == uid) || isMember(teamId);
+
+      // チーム作成：ログイン済み & ownerUidが自分
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.joinMode in ["open","invite"];
+
+      // チーム更新：管理者のみ
+      allow update, delete: if isAdmin(teamId);
+
+      // members
+match /members/{uid} {
+
+  // ✅ 自分の memberDoc は読める（collectionGroup で自分の所属チームを引くために必須）
+  // ✅ 管理者はチーム内メンバーを読める（管理画面用）
+  allow read: if signedIn() && request.auth.uid == uid
+              || isAdmin(teamId);
+
+  // ✅ members作成：
+  // - チーム作成直後の owner 登録（本人＆owner）
+  // - または管理者が承認で追加
+  allow create: if signedIn()
+    && teamExists(teamId)
+    && (
+      (
+        request.auth.uid == uid
+        && request.resource.data.uid == uid 
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == "owner"
+        && get(teamRef(teamId)).data.ownerUid == request.auth.uid
+      )
+      || isAdmin(teamId)
+    );
+
+  // 本人更新（roleは変えられない）
+  allow update: if signedIn()
+    && request.auth.uid == uid
+    && request.resource.data.role == resource.data.role;
+
+  // 管理者更新（role変更などOK）
+  allow update: if isAdmin(teamId);
+
+  allow delete: if isAdmin(teamId);
+}
+
+
+      // ✅ 参加申請（open: 申請→承認）
+      match /joinRequests/{uid} {
+        allow read: if isAdmin(teamId);
+
+        // open のときだけ本人が申請を作れる
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && get(teamRef(teamId)).data.joinMode == "open";
+
+        // 本人取消 or 管理者の却下
+        allow delete: if signedIn() && (request.auth.uid == uid || isAdmin(teamId));
+      }
+
+      // ✅ 招待制（将来用の土台）
+      match /invites/{inviteId} {
+        allow read, create, update, delete: if isAdmin(teamId);
+      }
+
+      // events
+      match /events/{eventId} {
+        allow read: if isMember(teamId);
+        allow create, update, delete: if isAdmin(teamId);
+
+        // responses
+        match /responses/{uid} {
+          allow read: if isMember(teamId);
+          allow create, update: if isMember(teamId) && request.auth.uid == uid;
+          allow delete: if isAdmin(teamId);
+        }
+      }
+
+      // memos
+      match /memos/{memoId} {
+        allow read: if isMember(teamId);
+
+        allow create: if isMember(teamId)
+          && request.resource.data.authorUid == request.auth.uid;
+
+        allow update, delete: if isAdmin(teamId)
+          || (isMember(teamId) && resource.data.authorUid == request.auth.uid);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+}
