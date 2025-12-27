@@ -1783,10 +1783,13 @@ async function loadTeamDoc(teamId) {
         const snap = await col.team(teamId).get();
         return snap.exists ? { id: snap.id, ...snap.data() } : null;
     } catch (e) {
-        console.warn("loadTeamDoc failed:", e);
+        if (!isPermissionDeniedError(e)) {
+            console.warn("loadTeamDoc failed:", e);
+        }
         return null;
     }
 }
+
 
 
 async function refreshMyTeamsList() {
@@ -1850,10 +1853,10 @@ async function refreshMyTeamsList() {
     });
 
     return myTeams;
-  } catch (e) {
-    // 参加チームが無いユーザーは rules 的に members を読めず PermissionDenied になることがあるので、
-    // ここでは「無所属」として扱う（初回体験を止めない）
-    console.warn("refreshMyTeamsList failed (ignored):", e);
+  }  catch (e) {
+    if (!isPermissionDeniedError(e)) {
+      console.warn("refreshMyTeamsList failed (ignored):", e);
+    }
     listEl.textContent = "参加中のチームはありません。";
     return [];
   }
@@ -2346,7 +2349,9 @@ async function loadMyMemberInfoReadOnly(teamId) {
     currentUserRole = data.role || "member";
     return true;
   } catch (e) {
-    console.error("loadMyMemberInfoReadOnly failed:", e);
+    if (!isPermissionDeniedError(e)) {
+      console.error("loadMyMemberInfoReadOnly failed:", e);
+    }
     currentUserRole = "guest";
     return false;
   }
