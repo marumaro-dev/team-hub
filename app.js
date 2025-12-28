@@ -2060,20 +2060,16 @@ async function applyGuestUi(teamDoc) {
     let canRequest = teamDoc?.joinMode === "open";
 
     // 既に申請済みならボタンを無効化
-    if (canRequest) {
-        try {
-            const req = await col
-                .joinRequest(firebase.auth().currentUser?.uid)
-                .get();
-            if (req.exists) {
-                canRequest = false;
-                setText(
-                    "join-request-msg",
-                    "すでに参加申請済みです。管理者の承認をお待ちください。"
-                );
-            }
-        } catch (e) {
-            // ignore
+    const uid = firebase.auth().currentUser?.uid;
+    const teamId = getTeamId();
+    if (uid && teamId) {
+        const req = await col.joinRequest(teamId, uid).get();
+        if (req.exists) {
+            canRequest = false;
+            setText(
+                "join-request-msg",
+                "すでに参加申請済みです。管理者の承認をお待ちください。"
+            );
         }
     }
 
@@ -2228,9 +2224,11 @@ async function openTeamFromUi() {
     await openTeam(tid);
 }
 
+// 参加申請
 async function submitJoinRequest() {
     const teamId = getTeamId();
     const msgEl = $("join-request-msg");
+    const btn = $("join-request-btn");
     if (msgEl) msgEl.textContent = "";
 
     if (!teamId) {
@@ -2244,7 +2242,6 @@ async function submitJoinRequest() {
         return;
     }
 
-    // teamDoc は joinMode=open のときのみ読める前提
     const teamDoc = await loadTeamDoc(teamId);
     if (!teamDoc) {
         if (msgEl) msgEl.textContent = "チーム情報を取得できませんでした。";
@@ -2256,8 +2253,10 @@ async function submitJoinRequest() {
     }
 
     try {
-        await col.joinRequest(uid).set({
+        if (btn) btn.disabled = true;
+        await col.joinRequest(teamId, uid).set({
             displayName: getPreferredDisplayName(),
+            uid,
             createdAt: TS(),
         });
         if (msgEl)
@@ -2266,8 +2265,11 @@ async function submitJoinRequest() {
     } catch (e) {
         console.error(e);
         if (msgEl) msgEl.textContent = "参加申請に失敗しました。";
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
+
 
 async function renderAdminJoinRequests() {
     const box = $("admin-join-requests-list");
@@ -2327,13 +2329,19 @@ async function renderAdminJoinRequests() {
     }
 }
 
+// 管理者：承認
 async function approveJoinRequest(uid) {
     if (!uid) return;
     try {
-        // 申請内容を読む（表示名を引き継ぐ）
+        const teamId = getTeamId();
+        if (!teamId) {
+            alert("teamId が未選択です。");
+            return;
+        }
+
         let displayName = "ゲスト";
         try {
-            const reqSnap = await col.joinRequest(uid).get();
+            const reqSnap = await col.joinRequest(teamId, uid).get();
             if (reqSnap.exists) {
                 displayName = reqSnap.data()?.displayName || displayName;
             }
@@ -2341,20 +2349,19 @@ async function approveJoinRequest(uid) {
             console.warn("read joinRequest failed", e);
         }
 
-        // members へ追加（role: member）
-        await setDoc(doc(db, `teams/${teamId}/members/${currentUid}`), {
-            uid: currentUid,
-            displayName,
-            role: "member",
-            uid: currentUser.uid,
-            isActive: true,
-            joinedAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
+        await col.member(teamId, uid).set(
+            {
+                uid,
+                displayName,
+                role: "member",
+                isActive: true,
+                joinedAt: TS(),
+                updatedAt: TS(),
+            },
+            { merge: true }
+        );
 
-        // 申請削除
-        await col.joinRequest(uid).delete();
-
+        await col.joinRequest(teamId, uid).delete();
         await renderAdminJoinRequests();
     } catch (e) {
         console.error(e);
@@ -2362,16 +2369,24 @@ async function approveJoinRequest(uid) {
     }
 }
 
+
+// 管理者：却下
 async function rejectJoinRequest(uid) {
     if (!uid) return;
     try {
-        await col.joinRequest(uid).delete();
+        const teamId = getTeamId();
+        if (!teamId) {
+            alert("teamId が未選択です。");
+            return;
+        }
+        await col.joinRequest(teamId, uid).delete();
         await renderAdminJoinRequests();
     } catch (e) {
         console.error(e);
         alert("却下に失敗しました。");
     }
 }
+
 
 function bindTeamUI() {
     // パネル開閉
