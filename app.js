@@ -425,15 +425,15 @@ function convertEventTypeLabel(type) {
 async function saveResponseFor(eventId, uid, status, comment = "") {
     const responseRef = col.response(eventId, uid);
     await db.collection("teams").doc(teamId)
-  .collection("members").doc(uid)
-  .set({
-    uid,                       // ✅必須
-    displayName: displayName || "",
-    role: role || "member",
-    isActive: true,            // ✅クエリで使ってるので必須
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }, { merge: true });
+        .collection("members").doc(uid)
+        .set({
+            uid,                       // ✅必須
+            displayName: displayName || "",
+            role: role || "member",
+            isActive: true,            // ✅クエリで使ってるので必須
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
 }
 
 
@@ -595,9 +595,8 @@ async function loadEventList() {
         const data = doc.data() || {};
         const item = document.createElement("div");
         item.className = "event-item";
-        item.textContent = `${data.date || ""} ${data.time || ""} ${
-            data.title || ""
-        } @${data.place || ""}`;
+        item.textContent = `${data.date || ""} ${data.time || ""} ${data.title || ""
+            } @${data.place || ""}`;
         item.onclick = async () => {
             currentEventId = doc.id;
             await loadAttendanceList();
@@ -673,9 +672,8 @@ async function loadAttendanceList() {
     const eventData = eventSnap.data() || {};
     if (titleEl) {
         if (titleEl)
-            titleEl.textContent = `${eventData.date || ""} ${
-                eventData.time || ""
-            } ${eventData.title || ""}`;
+            titleEl.textContent = `${eventData.date || ""} ${eventData.time || ""
+                } ${eventData.title || ""}`;
     }
 
     const respMap = {};
@@ -702,8 +700,8 @@ async function loadAttendanceList() {
         <option value="absent">欠席</option>
       </select>
       <input class="att-comment" placeholder="コメント" value="${escapeHtml(
-          comment
-      )}" />
+            comment
+        )}" />
       <button class="att-save">保存</button>
     `;
 
@@ -833,35 +831,27 @@ async function loadLineupEditor() {
         <div class="lineup-system-row">
           <label>打順人数
             <select id="lineup-system-select">
-              <option value="NORMAL9"${
-                  system === "NORMAL9" ? " selected" : ""
-              }>9人制</option>
-              <option value="DH10"${
-                  system === "DH10" ? " selected" : ""
-              }>DH制（10人打ち）</option>
-              <option value="DH11"${
-                  system === "DH11" ? " selected" : ""
-              }>DH制（11人打ち）</option>
-              <option value="DH12"${
-                  system === "DH12" ? " selected" : ""
-              }>DH制（12人打ち）</option>
-              <option value="DH13"${
-                  system === "DH13" ? " selected" : ""
-              }>DH制（13人打ち）</option>
-              <option value="DH14"${
-                  system === "DH14" ? " selected" : ""
-              }>DH制（14人打ち）</option>
-              <option value="DH15"${
-                  system === "DH15" ? " selected" : ""
-              }>DH制（15人打ち）</option>
+              <option value="NORMAL9"${system === "NORMAL9" ? " selected" : ""
+            }>9人制</option>
+              <option value="DH10"${system === "DH10" ? " selected" : ""
+            }>DH制（10人打ち）</option>
+              <option value="DH11"${system === "DH11" ? " selected" : ""
+            }>DH制（11人打ち）</option>
+              <option value="DH12"${system === "DH12" ? " selected" : ""
+            }>DH制（12人打ち）</option>
+              <option value="DH13"${system === "DH13" ? " selected" : ""
+            }>DH制（13人打ち）</option>
+              <option value="DH14"${system === "DH14" ? " selected" : ""
+            }>DH制（14人打ち）</option>
+              <option value="DH15"${system === "DH15" ? " selected" : ""
+            }>DH制（15人打ち）</option>
             </select>
           </label>
         </div>
 
         <div class="lineup-publish-row">
           <label>
-            <input type="checkbox" id="lineup-publish-checkbox"${
-                isPublished ? " checked" : ""
+            <input type="checkbox" id="lineup-publish-checkbox"${isPublished ? " checked" : ""
             }>
             オーダーをメンバーに公開する
           </label>
@@ -873,8 +863,8 @@ async function loadLineupEditor() {
           <label>メモ（継投・守備変更など）
             <textarea id="lineup-memo" rows="2"
               placeholder="例: 永久ベンチ→中橋、三振したら#21交代">${escapeHtml(
-                  memo
-              )}</textarea>
+                memo
+            )}</textarea>
           </label>
         </div>
       `;
@@ -935,9 +925,8 @@ function renderLineupRows(system) {
         html += `<td><select class="lineup-player-select">`;
         html += `<option value="">（選手を選択）</option>`;
         lineupCandidates.forEach((m) => {
-            html += `<option value="${m.id}"${
-                m.id === selectedMemberId ? " selected" : ""
-            }>${escapeHtml(m.name)}</option>`;
+            html += `<option value="${m.id}"${m.id === selectedMemberId ? " selected" : ""
+                }>${escapeHtml(m.name)}</option>`;
         });
         html += `</select></td>`;
 
@@ -945,9 +934,8 @@ function renderLineupRows(system) {
         html += `<td><select class="lineup-pos-select">`;
         html += `<option value="">ー</option>`;
         positions.forEach((pos) => {
-            html += `<option value="${pos}"${
-                pos === selectedPos ? " selected" : ""
-            }>${pos}</option>`;
+            html += `<option value="${pos}"${pos === selectedPos ? " selected" : ""
+                }>${pos}</option>`;
         });
         html += `</select></td>`;
 
@@ -1465,6 +1453,7 @@ async function setupAdminUI() {
             await deleteEventFromAdmin(eventId);
             await populateDeleteEventSelect();
             await populateEditEventSelect();
+            await refreshJoinRequestsPanel(getTeamId());
         });
     }
 }
@@ -1536,8 +1525,7 @@ async function loadStats(resultDiv) {
         ${rows
             .map(
                 (r) =>
-                    `<tr><td>${escapeHtml(r.name)}</td><td>${
-                        r.attendCount
+                    `<tr><td>${escapeHtml(r.name)}</td><td>${r.attendCount
                     }</td><td>${r.rate}%</td></tr>`
             )
             .join("")}
@@ -1731,11 +1719,10 @@ async function loadMemos(reset = false) {
         <div class="memo-author">${escapeHtml(authorName)}</div>
         <div class="memo-header-right">
           <span class="memo-date">${createdAt}</span>
-          ${
-              deletable
-                  ? `<button class="memo-delete-btn" data-id="${doc.id}" data-author-uid="${data.authorUid}">🗑</button>`
-                  : ""
-          }
+          ${deletable
+                ? `<button class="memo-delete-btn" data-id="${doc.id}" data-author-uid="${data.authorUid}">🗑</button>`
+                : ""
+            }
         </div>
       </div>
       <div class="memo-body">${escapeHtml(data.text || "")}</div>
@@ -1796,82 +1783,231 @@ async function loadTeamDoc(teamId) {
         return snap.exists ? { id: snap.id, ...snap.data() } : null;
     } catch (e) {
         if (!isPermissionDenied(e)) {
-    console.warn("loadTeamDoc failed:", e);
-}
+            console.warn("loadTeamDoc failed:", e);
+        }
         return null;
     }
+}
+
+// 申請作成/状態表示
+async function createJoinRequest(teamId) {
+    const user = firebase.auth().currentUser;
+    if (!user) throw new Error("未ログインです");
+
+    const uid = user.uid;
+    const displayName = user.displayName || currentUser?.displayName || "ゲスト";
+
+    const ref = db.collection("teams").doc(teamId).collection("joinRequests").doc(uid);
+
+    await ref.set({
+        uid,
+        displayName,
+        status: "pending",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return true;
+}
+
+function bindJoinRequestUI(teamId) {
+    const btn = document.getElementById("join-request-btn");
+    const statusEl = document.getElementById("join-request-status");
+    if (!btn) return;
+
+    btn.addEventListener("click", async () => {
+        try {
+            btn.disabled = true;
+            if (statusEl) statusEl.textContent = "申請中...";
+
+            await createJoinRequest(teamId);
+
+            if (statusEl) statusEl.textContent = "申請しました（承認待ち）";
+            watchMyJoinRequestStatus(teamId); // 状態監視
+        } catch (e) {
+            console.error(e);
+            if (statusEl) statusEl.textContent = "申請に失敗しました。権限/チーム設定を確認してください。";
+        } finally {
+            btn.disabled = false;
+        }
+    });
+}
+
+function watchMyJoinRequestStatus(teamId) {
+    const user = firebase.auth().currentUser;
+    const statusEl = document.getElementById("join-request-status");
+    if (!user || !statusEl) return;
+
+    const uid = user.uid;
+    const memberRef = db.collection("teams").doc(teamId).collection("members").doc(uid);
+
+    // members が作られたら「承認された」と判断
+    return memberRef.onSnapshot((doc) => {
+        if (doc.exists) {
+            statusEl.textContent = "承認されました！再読み込みして続行してください。";
+        }
+    });
+}
+
+// 一覧表示
+async function loadJoinRequests(teamId) {
+    const snap = await db.collection("teams").doc(teamId).collection("joinRequests")
+        .orderBy("createdAt", "desc")
+        .get();
+
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+function renderJoinRequests(reqs) {
+    const list = document.getElementById("join-requests-list");
+    if (!list) return;
+
+    if (!reqs.length) {
+        list.innerHTML = "<div class='muted'>申請はありません</div>";
+        return;
+    }
+
+    list.innerHTML = reqs.map(r => `
+    <div class="row" data-uid="${r.uid}">
+      <div>
+        <div><b>${escapeHtml(r.displayName || r.uid)}</b></div>
+        <div class="muted">${escapeHtml(r.uid)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn approve" data-approve="${r.uid}">承認</button>
+        <button class="btn reject" data-reject="${r.uid}">却下</button>
+      </div>
+    </div>
+  `).join("");
+
+    // イベント登録
+    list.querySelectorAll("[data-approve]").forEach(btn => {
+        btn.addEventListener("click", () => approveJoinRequest(getTeamId(), btn.dataset.approve));
+    });
+    list.querySelectorAll("[data-reject]").forEach(btn => {
+        btn.addEventListener("click", () => rejectJoinRequest(getTeamId(), btn.dataset.reject));
+    });
+}
+
+async function refreshJoinRequestsPanel(teamId) {
+    const panel = document.getElementById("join-requests-panel");
+    if (panel) panel.style.display = "block";
+
+    const reqs = await loadJoinRequests(teamId);
+    renderJoinRequests(reqs);
+}
+
+// 承認/却下
+async function approveJoinRequest(teamId, uid) {
+    // joinRequest doc を取得して表示名などを使う
+    const jrRef = db.collection("teams").doc(teamId).collection("joinRequests").doc(uid);
+    const jrDoc = await jrRef.get();
+    if (!jrDoc.exists) return;
+
+    const data = jrDoc.data() || {};
+    const displayName = data.displayName || "ゲスト";
+
+    const memberRef = db.collection("teams").doc(teamId).collection("members").doc(uid);
+
+    // members 作成 → joinRequests 削除
+    await memberRef.set({
+        uid,
+        displayName,
+        role: "member",
+        isActive: true,
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    await jrRef.delete();
+
+    await refreshJoinRequestsPanel(teamId);
+}
+
+async function rejectJoinRequest(teamId, uid) {
+    const jrRef = db.collection("teams").doc(teamId).collection("joinRequests").doc(uid);
+    await jrRef.delete();
+    await refreshJoinRequestsPanel(teamId);
+}
+
+// エスケープ処理
+function escapeHtml(s) {
+    return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
 }
 
 
 
 async function refreshMyTeamsList() {
-  const listEl = document.getElementById("my-teams-list");
-  if (!listEl) return [];
+    const listEl = document.getElementById("my-teams-list");
+    if (!listEl) return [];
 
-  listEl.textContent = "読み込み中...";
+    listEl.textContent = "読み込み中...";
 
-  try {
-    // firebase.auth().currentUser を最優先（currentUser より確実）
-    const uid = firebase.auth().currentUser?.uid || currentUser?.uid || window.currentUid;
-    if (!uid) {
-      listEl.textContent = "未ログインです。";
-      return [];
-    }
+    try {
+        // firebase.auth().currentUser を最優先（currentUser より確実）
+        const uid = firebase.auth().currentUser?.uid || currentUser?.uid || window.currentUid;
+        if (!uid) {
+            listEl.textContent = "未ログインです。";
+            return [];
+        }
 
-    // ★ collectionGroup で members を検索する場合は documentId() ではなく uid フィールドで絞る
-    const snap = await db
-      .collectionGroup("members")
-      .where("uid", "==", uid)
-      .where("isActive", "==", true)
-      .get();
+        // ★ collectionGroup で members を検索する場合は documentId() ではなく uid フィールドで絞る
+        const snap = await db
+            .collectionGroup("members")
+            .where("uid", "==", uid)
+            .where("isActive", "==", true)
+            .get();
 
-    const teamIds = [...new Set(snap.docs.map(d => d.ref.parent.parent.id))];
+        const teamIds = [...new Set(snap.docs.map(d => d.ref.parent.parent.id))];
 
-    if (teamIds.length === 0) {
-      listEl.textContent = "参加中のチームはありません。";
-      return [];
-    }
+        if (teamIds.length === 0) {
+            listEl.textContent = "参加中のチームはありません。";
+            return [];
+        }
 
-    // teams/{teamId} を取得（rules: member なら読める / open ならログイン済みで読める）
-    const teamDocs = await Promise.all(
-      teamIds.map(teamId => db.collection("teams").doc(teamId).get())
-    );
+        // teams/{teamId} を取得（rules: member なら読める / open ならログイン済みで読める）
+        const teamDocs = await Promise.all(
+            teamIds.map(teamId => db.collection("teams").doc(teamId).get())
+        );
 
-    const myTeams = teamDocs
-      .filter(d => d.exists)
-      .map(d => ({ teamId: d.id, ...d.data() }));
+        const myTeams = teamDocs
+            .filter(d => d.exists)
+            .map(d => ({ teamId: d.id, ...d.data() }));
 
-    // 描画
-    listEl.innerHTML = "";
-    myTeams.forEach(team => {
-      const row = document.createElement("div");
-      row.className = "my-team-row";
-      row.innerHTML = `
+        // 描画
+        listEl.innerHTML = "";
+        myTeams.forEach(team => {
+            const row = document.createElement("div");
+            row.className = "my-team-row";
+            row.innerHTML = `
         <button class="btn btn-sub team-select-btn" data-teamid="${team.teamId}">
           ${escapeHtml(team.name || team.teamId)}
         </button>
       `;
-      listEl.appendChild(row);
-    });
+            listEl.appendChild(row);
+        });
 
-    // クリックで切替
-    listEl.querySelectorAll(".team-select-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const teamId = btn.dataset.teamid;
-        if (!teamId) return;
-        setTeamId(teamId);
-        await openTeam(teamId);
-      });
-    });
+        // クリックで切替
+        listEl.querySelectorAll(".team-select-btn").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const teamId = btn.dataset.teamid;
+                if (!teamId) return;
+                setTeamId(teamId);
+                await openTeam(teamId);
+            });
+        });
 
-    return myTeams;
-  }  catch (e) {
-    if (!isPermissionDenied(e)) {
-    console.warn("refreshMyTeamsList failed (ignored):", e);
-}
-    listEl.textContent = "参加中のチームはありません。";
-    return [];
-  }
+        return myTeams;
+    } catch (e) {
+        if (!isPermissionDenied(e)) {
+            console.warn("refreshMyTeamsList failed (ignored):", e);
+        }
+        listEl.textContent = "参加中のチームはありません。";
+        return [];
+    }
 }
 
 
@@ -2161,11 +2297,11 @@ async function renderAdminJoinRequests() {
                 </div>
                 <div class="actions">
                   <button class="pill-button" type="button" data-approve-uid="${escapeHtml(
-                      uid
-                  )}">承認</button>
+                uid
+            )}">承認</button>
                   <button class="pill-button" type="button" data-reject-uid="${escapeHtml(
-                      uid
-                  )}">却下</button>
+                uid
+            )}">却下</button>
                 </div>
               </div>
             `;
@@ -2345,131 +2481,135 @@ function renderMyTeams(myTeams) {
 }
 
 async function loadMyMemberInfoReadOnly(teamId) {
-  try {
-    const uid = currentUser?.uid || window.currentUid;
-    if (!uid) return false;
+    try {
+        const uid = currentUser?.uid || window.currentUid;
+        if (!uid) return false;
 
-    const ref = db.collection("teams").doc(teamId).collection("members").doc(uid);
-    const doc = await ref.get();
+        const ref = db.collection("teams").doc(teamId).collection("members").doc(uid);
+        const doc = await ref.get();
 
-    if (!doc.exists) {
-      currentUserRole = "guest";
-      return false;
+        if (!doc.exists) {
+            currentUserRole = "guest";
+            return false;
+        }
+
+        const data = doc.data() || {};
+        currentUserRole = data.role || "member";
+        return true;
+    } catch (e) {
+        if (!isPermissionDenied(e)) {
+            console.error("loadMyMemberInfoReadOnly failed:", e);
+        }
+        currentUserRole = "guest";
+        return false;
     }
-
-    const data = doc.data() || {};
-    currentUserRole = data.role || "member";
-    return true;
-  } catch (e) {
-    if (!isPermissionDenied(e)) {
-    console.error("loadMyMemberInfoReadOnly failed:", e);
-}
-    currentUserRole = "guest";
-    return false;
-  }
 }
 
 
 // ========== メイン処理 ==========
 async function main() {
-  try {
-    console.log("=== main() 開始 ===");
+    try {
+        console.log("=== main() 開始 ===");
 
-    db = firebase.firestore();
-    console.log("Firestore 初期化 OK");
+        db = firebase.firestore();
+        console.log("Firestore 初期化 OK");
 
-    const user = await initAuth();
+        const user = await initAuth();
 
-    // 先に currentUser を確定
-    currentUser = { uid: user.uid, displayName: user.displayName || "" };
-    window.currentUid = user.uid;
+        // 先に currentUser を確定
+        currentUser = { uid: user.uid, displayName: user.displayName || "" };
+        window.currentUid = user.uid;
 
-    // UIバインド（認証）
-    bindAuthUI();
-    console.log("Auth 初期化 OK:", currentUser);
+        // UIバインド（認証）
+        bindAuthUI();
+        console.log("Auth 初期化 OK:", currentUser);
 
-    // ① 所属チーム取得 → 描画
-    const myTeams = await refreshMyTeamsList();
+        // ① 所属チーム取得 → 描画
+        const myTeams = await refreshMyTeamsList();
 
-    // チームUI（選択・作成・参加ボタンなど）
-    bindTeamUI();
+        // チームUI（選択・作成・参加ボタンなど）
+        bindTeamUI();
 
-    // ② teamId 未選択なら、チームパネル出して終了（イベント読み込み等はしない）
-    const teamId = getTeamId(); // ★ここで統一
-    if (!teamId) {
-      updateTeamHeader(null);
-      applyNotSelectedUi();
-      console.log("teamId 未選択なので終了");
-      return;
+        // ② teamId 未選択なら、チームパネル出して終了（イベント読み込み等はしない）
+        const teamId = getTeamId(); // ★ここで統一
+        if (!teamId) {
+            updateTeamHeader(null);
+            applyNotSelectedUi();
+            console.log("teamId 未選択なので終了");
+            return;
+        }
+
+        // ③ team doc 読み取り（openならmemberでなくても読める想定）
+        const teamDoc = await loadTeamDoc(teamId);
+        updateTeamHeader(teamDoc || { id: teamId, name: "(取得不可)" });
+
+        // ④ 自分が members に存在するかだけ確認（※書き込みはしない）
+        //    → 未所属なら guest 扱いにして「参加導線」を表示する
+        const isMemberNow = await loadMyMemberInfoReadOnly(teamId);
+        if (!isMemberNow || currentUserRole === "guest") {
+            // ★ここで ensureMember しない！！（Rulesで弾かれる）
+            await applyGuestUi(teamDoc);
+            console.log("未所属なので guest UI で停止");
+            return;
+        }
+
+        // 未所属なので guest UI で停止…のところで
+        bindJoinRequestUI(getTeamId());
+        watchMyJoinRequestStatus(getTeamId());
+
+        // ⑤ ここから先は「所属済み」のユーザーだけ
+        applyMemberUi();
+
+        currentEventId = getEventIdFromUrl();
+        console.log("currentEventId =", currentEventId);
+
+        const listView = document.getElementById("event-list-view");
+        const detailView = document.getElementById("event-detail-view");
+
+        if (!currentEventId) {
+            console.log("一覧モードに入ります");
+            listView.style.display = "block";
+            detailView.style.display = "none";
+
+            await loadEventList();
+            setupMemoSection();
+            showStatsPanelIfNeeded();
+            await setupAdminUI();
+
+            const openMyBtn = document.getElementById("open-my-attendance-btn");
+            const myView = document.getElementById("my-attendance-view");
+
+            if (openMyBtn && myView) {
+                openMyBtn.addEventListener("click", () => {
+                    listView.style.display = "none";
+                    myView.style.display = "block";
+                    loadMyAttendance();
+                });
+            }
+
+            const backMyBtn = document.getElementById("back-to-events-btn");
+            if (backMyBtn && myView) {
+                backMyBtn.addEventListener("click", () => {
+                    myView.style.display = "none";
+                    listView.style.display = "block";
+                });
+            }
+        } else {
+            console.log("詳細モードに入ります");
+            listView.style.display = "none";
+            detailView.style.display = "block";
+
+            setupBackButton();
+            await loadEvent();
+            await loadAttendanceList();
+            setupButtons();
+        }
+
+        console.log("=== main() 正常終了 ===");
+    } catch (e) {
+        console.error("main() でエラー:", e);
+        alert("初期化中にエラーが発生しました。コンソールを確認してください。");
     }
-
-    // ③ team doc 読み取り（openならmemberでなくても読める想定）
-    const teamDoc = await loadTeamDoc(teamId);
-    updateTeamHeader(teamDoc || { id: teamId, name: "(取得不可)" });
-
-    // ④ 自分が members に存在するかだけ確認（※書き込みはしない）
-    //    → 未所属なら guest 扱いにして「参加導線」を表示する
-    const isMemberNow = await loadMyMemberInfoReadOnly(teamId);
-    if (!isMemberNow || currentUserRole === "guest") {
-      // ★ここで ensureMember しない！！（Rulesで弾かれる）
-      await applyGuestUi(teamDoc);
-      console.log("未所属なので guest UI で停止");
-      return;
-    }
-
-    // ⑤ ここから先は「所属済み」のユーザーだけ
-    applyMemberUi();
-
-    currentEventId = getEventIdFromUrl();
-    console.log("currentEventId =", currentEventId);
-
-    const listView = document.getElementById("event-list-view");
-    const detailView = document.getElementById("event-detail-view");
-
-    if (!currentEventId) {
-      console.log("一覧モードに入ります");
-      listView.style.display = "block";
-      detailView.style.display = "none";
-
-      await loadEventList();
-      setupMemoSection();
-      showStatsPanelIfNeeded();
-      await setupAdminUI();
-
-      const openMyBtn = document.getElementById("open-my-attendance-btn");
-      const myView = document.getElementById("my-attendance-view");
-
-      if (openMyBtn && myView) {
-        openMyBtn.addEventListener("click", () => {
-          listView.style.display = "none";
-          myView.style.display = "block";
-          loadMyAttendance();
-        });
-      }
-
-      const backMyBtn = document.getElementById("back-to-events-btn");
-      if (backMyBtn && myView) {
-        backMyBtn.addEventListener("click", () => {
-          myView.style.display = "none";
-          listView.style.display = "block";
-        });
-      }
-    } else {
-      console.log("詳細モードに入ります");
-      listView.style.display = "none";
-      detailView.style.display = "block";
-
-      setupBackButton();
-      await loadEvent();
-      await loadAttendanceList();
-      setupButtons();
-    }
-
-    console.log("=== main() 正常終了 ===");
-  } catch (e) {
-    console.error("main() でエラー:", e);
-    alert("初期化中にエラーが発生しました。コンソールを確認してください。");
-  }
 }
 
 window.addEventListener("load", main);
