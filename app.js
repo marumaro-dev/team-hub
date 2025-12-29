@@ -2058,27 +2058,40 @@ async function applyGuestUi(teamDoc) {
 
     // open 以外（invite）なら申請ボタンは不可
     let canRequest = teamDoc?.joinMode === "open";
-
+    let requestMessage = "";
+    if (!teamDoc) {
+        canRequest = false;
+        requestMessage =
+            "チーム情報を取得できませんでした。権限設定を確認してください。";
+    }
+    if (teamDoc && teamDoc.joinMode !== "open") {
+        canRequest = false;
+        requestMessage =
+            "このチームは招待制のため、管理者からの招待リンクが必要です。";
+    }
     // 既に申請済みならボタンを無効化
-    const uid = firebase.auth().currentUser?.uid;
-    const teamId = getTeamId();
-    if (uid && teamId) {
-        const req = await col.joinRequest(teamId, uid).get();
-        if (req.exists) {
-            canRequest = false;
-            setText(
-                "join-request-msg",
-                "すでに参加申請済みです。管理者の承認をお待ちください。"
-            );
+    if (canRequest) {
+        try {
+            const uid = firebase.auth().currentUser?.uid;
+            const teamId = getTeamId();
+            if (uid && teamId) {
+                const req = await col.joinRequest(teamId, uid).get();
+                if (req.exists) {
+                    canRequest = false;
+                    requestMessage =
+                        "すでに参加申請済みです。管理者の承認をお待ちください。";
+                }
+            }
+        } catch (e) {
+            if (!isPermissionDenied(e)) {
+                console.warn("read joinRequest failed", e);
+            }
         }
     }
 
     $("join-request-btn")?.toggleAttribute("disabled", !canRequest);
     if (!canRequest) {
-        setText(
-            "join-request-msg",
-            "このチームは招待制のため、管理者からの招待リンクが必要です。"
-        );
+        setText("join-request-msg", requestMessage);
     } else {
         setText("join-request-msg", "");
     }
@@ -2558,15 +2571,14 @@ async function main() {
         const teamDoc = await loadTeamDoc(teamId);
         updateTeamHeader(teamDoc || { id: teamId, name: "(取得不可)" });
 
-        // ④ 自分が members に存在するかだけ確認（※書き込みはしない）
-        //    → 未所属なら guest 扱いにして「参加導線」を表示する
-        const isMemberNow = await loadMyMemberInfoReadOnly(teamId);
+        // 自分が member か判定（書き込みはしない）
+        const isMemberNow = await loadMyMemberInfoReadOnly(tid);
+
         if (!isMemberNow || currentUserRole === "guest") {
-            // ★ここで ensureMember しない！！（Rulesで弾かれる）
             await applyGuestUi(teamDoc);
-            console.log("未所属なので guest UI で停止");
             return;
         }
+
 
         // 未所属なので guest UI で停止…のところで
         bindJoinRequestUI(getTeamId());
