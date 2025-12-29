@@ -2559,25 +2559,18 @@ async function main() {
         bindTeamUI();
 
         // ② teamId 未選択なら、チームパネル出して終了（イベント読み込み等はしない）
-        const teamId = getTeamId(); // ★ここで統一
-        if (!teamId) {
+        const tid = getTeamId(); // ★ここで統一
+        if (!tid) {
             updateTeamHeader(null);
             applyNotSelectedUi();
             console.log("teamId 未選択なので終了");
             return;
         }
 
-        // ③ team doc 読み取り（openならmemberでなくても読める想定）
-        const teamDoc = await loadTeamDoc(teamId);
-        updateTeamHeader(teamDoc || { id: teamId, name: "(取得不可)" });
+        const teamDoc = await loadTeamDoc(tid);
+        updateTeamHeader(teamDoc || { id: tid, name: "(取得不可)" });
 
-        // 自分が member か判定（書き込みはしない）
         const isMemberNow = await loadMyMemberInfoReadOnly(tid);
-
-        if (!isMemberNow || currentUserRole === "guest") {
-            await applyGuestUi(teamDoc);
-            return;
-        }
 
 
         // 未所属なので guest UI で停止…のところで
