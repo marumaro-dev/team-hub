@@ -2152,7 +2152,6 @@ async function openTeam(teamId) {
     if (isCurrentUserAdmin()) {
         await renderAdminJoinRequests();
     }
-    currentEventId = getEventIdFromUrl();
 
     // 既存ルーティング（イベント一覧/詳細）を再描画
     currentEventId = getEventIdFromUrl();
@@ -2600,6 +2599,12 @@ async function main() {
 
         // ⑤ ここから先は「所属済み」のユーザーだけ
         applyMemberUi();
+
+        // admin（参加申請の承認）
+        showAdminPanelIfNeeded();
+        if (isCurrentUserAdmin()) {
+            await renderAdminJoinRequests();
+        }
 
         currentEventId = getEventIdFromUrl();
         console.log("currentEventId =", currentEventId);
