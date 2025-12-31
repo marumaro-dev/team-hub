@@ -2071,45 +2071,69 @@ async function applyGuestUi(teamDoc) {
     const name = teamDoc?.name ? `チーム：${teamDoc.name}` : "";
     setText("join-request-team", name);
 
-    // open 以外（invite）なら申請ボタンは不可
-    let canRequest = teamDoc?.joinMode === "open";
-    let requestMessage = "";
-    if (!teamDoc) {
-        canRequest = false;
-        requestMessage =
-            "チーム情報を取得できませんでした。権限設定を確認してください。";
-    }
-    if (teamDoc && teamDoc.joinMode !== "open") {
-        canRequest = false;
-        requestMessage =
-            "このチームは招待制のため、管理者からの招待リンクが必要です。";
-    }
-    // 既に申請済みならボタンを無効化
-    if (canRequest) {
-        try {
-            const uid = firebase.auth().currentUser?.uid;
-            const teamId = getTeamId();
-            if (uid && teamId) {
-                const req = await col.joinRequest(teamId, uid).get();
-                if (req.exists) {
-                    canRequest = false;
-                    requestMessage =
-                        "すでに参加申請済みです。管理者の承認をお待ちください。";
-                }
-            }
-        } catch (e) {
-            if (!isPermissionDenied(e)) {
-                console.warn("read joinRequest failed", e);
-            }
-        }
+    // いったんデフォルト（申請前）
+    const btn = $('join-request-btn');
+    const msg = $('join-request-message');
+    btn.disabled = false;
+    btn.textContent = '参加申請する';
+    msg.textContent = '';
+
+    // joinMode が open 以外なら申請不可表示
+    const joinMode = team?.joinMode || '';
+    if (joinMode !== 'open') {
+        btn.disabled = true;
+        btn.textContent = '申請できません';
+        msg.textContent = 'このチームは招待制のため、管理者からの招待リンクが必要です。';
+        return;
     }
 
-    $("join-request-btn")?.toggleAttribute("disabled", !canRequest);
-    if (!canRequest) {
-        setText("join-request-msg", requestMessage);
-    } else {
-        setText("join-request-msg", "");
+    // 申請状態を確認（本人が読めるルールが必要）
+    try {
+        const reqRef = doc(db, 'teams', TEAM_ID, 'joinRequests', AUTH_UID);
+        const reqSnap = await getDoc(reqRef);
+
+        if (reqSnap.exists()) {
+            // 申請後
+            btn.disabled = true;
+            btn.textContent = '承認待ちです';
+            msg.textContent = '申請は送信済みです。管理者の承認をお待ちください。';
+            return;
+        }
+    } catch (e) {
+        // ここで落ちると「ボタンが出ない」になるので、握りつぶして申請可能状態は維持
+        console.warn('[warn] joinRequests read failed:', e?.code || e);
     }
+
+    // 申請前：クリックで申請作成
+    btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = '送信中...';
+
+        try {
+            const reqRef = doc(db, 'teams', TEAM_ID, 'joinRequests', AUTH_UID);
+            await setDoc(reqRef, {
+                uid: AUTH_UID,
+                displayName: CURRENT_USER?.displayName || '',
+                createdAt: serverTimestamp(),
+            });
+
+            btn.disabled = true;
+            btn.textContent = '承認待ちです';
+            msg.textContent = '申請を送信しました。管理者の承認をお待ちください。';
+        } catch (e) {
+            console.error('[error] joinRequest create failed:', e);
+            btn.disabled = false;
+            btn.textContent = '参加申請する';
+            msg.textContent = `申請に失敗しました（${e?.code || 'unknown'}）。もう一度お試しください。`;
+        }
+    };
+}
+
+$("join-request-btn")?.toggleAttribute("disabled", !canRequest);
+if (!canRequest) {
+    setText("join-request-msg", requestMessage);
+} else {
+    setText("join-request-msg", "");
 }
 
 function applyMemberUi() {
