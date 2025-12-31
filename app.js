@@ -2071,62 +2071,56 @@ async function applyGuestUi(teamDoc) {
     const name = teamDoc?.name ? `チーム：${teamDoc.name}` : "";
     setText("join-request-team", name);
 
-    // いったんデフォルト（申請前）
-    const btn = $('join-request-btn');
-    const msg = $('join-request-message');
-    btn.disabled = false;
-    btn.textContent = '参加申請する';
-    msg.textContent = '';
+    const requestBtn = $("join-request-btn");
 
-    // joinMode が open 以外なら申請不可表示
-    const joinMode = team?.joinMode || '';
-    if (joinMode !== 'open') {
-        btn.disabled = true;
-        btn.textContent = '申請できません';
-        msg.textContent = 'このチームは招待制のため、管理者からの招待リンクが必要です。';
-        return;
+    // open 以外（invite）なら申請ボタンは不可
+    let canRequest = teamDoc?.joinMode === "open";
+    let requestMessage = "";
+    let requestStatus = "ready"; // ready | pending | disabled
+    if (!teamDoc) {
+        canRequest = false;
+        requestStatus = "disabled";
+        requestMessage =
+            "チーム情報を取得できませんでした。権限設定を確認してください。";
+    }
+    if (teamDoc && teamDoc.joinMode !== "open") {
+        canRequest = false;
+        requestStatus = "disabled";
+        requestMessage =
+            "このチームは招待制のため、管理者からの招待リンクが必要です。";
     }
 
-    // 申請状態を確認（本人が読めるルールが必要）
-    try {
-        const reqRef = doc(db, 'teams', TEAM_ID, 'joinRequests', AUTH_UID);
-        const reqSnap = await getDoc(reqRef);
-
-        if (reqSnap.exists()) {
-            // 申請後
-            btn.disabled = true;
-            btn.textContent = '承認待ちです';
-            msg.textContent = '申請は送信済みです。管理者の承認をお待ちください。';
-            return;
-        }
-    } catch (e) {
-        // ここで落ちると「ボタンが出ない」になるので、握りつぶして申請可能状態は維持
-        console.warn('[warn] joinRequests read failed:', e?.code || e);
-    }
-
-    // 申請前：クリックで申請作成
-    btn.onclick = async () => {
-        btn.disabled = true;
-        btn.textContent = '送信中...';
-
+    // 既に申請済みならボタンを無効化
+    if (canRequest) {
         try {
-            const reqRef = doc(db, 'teams', TEAM_ID, 'joinRequests', AUTH_UID);
-            await setDoc(reqRef, {
-                uid: AUTH_UID,
-                displayName: CURRENT_USER?.displayName || '',
-                createdAt: serverTimestamp(),
-            });
-
-            btn.disabled = true;
-            btn.textContent = '承認待ちです';
-            msg.textContent = '申請を送信しました。管理者の承認をお待ちください。';
+            const uid = firebase.auth().currentUser?.uid;
+            const teamId = getTeamId();
+            if (uid && teamId) {
+                const req = await col.joinRequest(teamId, uid).get();
+                if (req.exists) {
+                    canRequest = false;
+                    requestStatus = "pending";
+                    requestMessage =
+                        "すでに参加申請済みです。管理者の承認をお待ちください。";
+                }
+            }
         } catch (e) {
-            console.error('[error] joinRequest create failed:', e);
-            btn.disabled = false;
-            btn.textContent = '参加申請する';
-            msg.textContent = `申請に失敗しました（${e?.code || 'unknown'}）。もう一度お試しください。`;
+            if (!isPermissionDenied(e)) {
+                console.warn("read joinRequest failed", e);
+            }
         }
-    };
+    }
+
+    if (requestBtn) {
+        requestBtn.textContent =
+            requestStatus === "pending" ? "承認待ちです" : "参加申請する";
+        requestBtn.toggleAttribute("disabled", !canRequest);
+    }
+    if (!canRequest) {
+        setText("join-request-msg", requestMessage);
+    } else {
+        setText("join-request-msg", "");
+    }
 }
 
 $("join-request-btn")?.toggleAttribute("disabled", !canRequest);
@@ -2278,42 +2272,55 @@ async function openTeamFromUi() {
 
 // 参加申請
 async function submitJoinRequest() {
-    const teamId = getTeamIdFromQuery();
-    const uid = firebase.auth().currentUser?.uid || currentUser?.uid;
-    if (!teamId || !uid) return;
-
+    const teamId = getTeamId();
+    const msgEl = $("join-request-msg");
     const btn = $("join-request-btn");
-    const msg = $("join-request-msg");
-    if (btn) btn.disabled = true;
-    if (msg) msg.textContent = "送信中…";
+    if (msgEl) msgEl.textContent = "";
+
+    if (!teamId) {
+        if (msgEl) msgEl.textContent = "teamId が未選択です。";
+        return;
+    }
+
+    const uid = firebase.auth().currentUser?.uid;
+    if (!uid) {
+        if (msgEl) msgEl.textContent = "未ログインです。";
+        return;
+    }
+
+    // teamDoc は joinMode=open のときのみ読める前提
+    const teamDoc = await loadTeamDoc(teamId);
+    if (!teamDoc) {
+        if (msgEl) msgEl.textContent = "チーム情報を取得できませんでした。";
+        return;
+    }
+    if (teamDoc.joinMode !== "open") {
+        if (msgEl) msgEl.textContent = "このチームは招待制です。";
+        return;
+    }
 
     try {
-        // 既に member の場合は申請不要
-        const memSnap = await col.member(teamId, uid).get();
-        if (memSnap.exists && memSnap.data()?.isActive) {
-            if (msg) msg.textContent = "すでに参加済みです。";
-            return;
+        if (btn) btn.disabled = true;
+        await col.joinRequest(teamId, uid).set({
+            displayName: getPreferredDisplayName(),
+            uid,
+            createdAt: TS(),
+        });
+        if (btn) btn.textContent = "承認待ちです";
+        if (msgEl) {
+            msgEl.textContent =
+                "参加申請しました！管理者の承認をお待ちください。";
         }
-
-        // 申請 doc は uid を docId にする（applyGuestUi の作りと一致）
-        await col.joinRequest(teamId, uid).set(
-            {
-                uid,
-                displayName: currentUser?.displayName || "",
-                status: "pending",
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-        );
-
-        if (msg) msg.textContent = "参加申請を送信しました（承認待ち）";
     } catch (e) {
-        console.error("submitJoinRequest failed:", e);
-        if (msg) msg.textContent = "送信に失敗しました。もう一度お試しください。";
+        console.error(e);
+        if (msgEl) msgEl.textContent = "参加申請に失敗しました。";
     } finally {
-        if (btn) btn.disabled = false;
+        if (btn && btn.textContent !== "承認待ちです") {
+            btn.disabled = false;
+        }
     }
 }
+
 
 
 
@@ -2685,4 +2692,3 @@ async function main() {
 }
 
 window.addEventListener("load", main);
-
