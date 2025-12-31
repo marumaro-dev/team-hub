@@ -1463,6 +1463,12 @@ function showAdminPanelIfNeeded() {
     const ids = ["admin-panel", "admin-event-delete"];
     const isAdmin = isCurrentUserAdmin();
 
+
+    console.log("[debug] showAdminPanelIfNeeded", {
+        isAdmin,
+        currentUserRole,
+    });
+
     ids.forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.style.display = isAdmin ? "block" : "none";
@@ -2516,6 +2522,14 @@ async function loadMyMemberInfoReadOnly(teamId) {
         const ref = db.collection("teams").doc(teamId).collection("members").doc(uid);
         const doc = await ref.get();
 
+
+        console.log("[debug] loadMyMemberInfoReadOnly", {
+            teamId,
+            uid,
+            exists: doc.exists,
+            data: doc.exists ? doc.data() : null,
+        });
+
         if (!doc.exists) {
             currentUserRole = "guest";
             return false;
@@ -2571,6 +2585,12 @@ async function main() {
         updateTeamHeader(teamDoc || { id: tid, name: "(取得不可)" });
 
         const isMemberNow = await loadMyMemberInfoReadOnly(tid);
+
+        console.log("[debug] openTeam role check", {
+            tid,
+            isMemberNow,
+            currentUserRole,
+        });
 
 
         // 未所属なので guest UI で停止…のところで
