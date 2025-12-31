@@ -2254,49 +2254,43 @@ async function openTeamFromUi() {
 
 // 参加申請
 async function submitJoinRequest() {
-    const teamId = getTeamId();
-    const msgEl = $("join-request-msg");
+    const teamId = getTeamIdFromQuery();
+    const uid = firebase.auth().currentUser?.uid || currentUser?.uid;
+    if (!teamId || !uid) return;
+
     const btn = $("join-request-btn");
-    if (msgEl) msgEl.textContent = "";
-
-    if (!teamId) {
-        if (msgEl) msgEl.textContent = "teamId が未選択です。";
-        return;
-    }
-
-    const uid = firebase.auth().currentUser?.uid;
-    if (!uid) {
-        if (msgEl) msgEl.textContent = "未ログインです。";
-        return;
-    }
-
-    const teamDoc = await loadTeamDoc(teamId);
-    if (!teamDoc) {
-        if (msgEl) msgEl.textContent = "チーム情報を取得できませんでした。";
-        return;
-    }
-    if (teamDoc.joinMode !== "open") {
-        if (msgEl) msgEl.textContent = "このチームは招待制です。";
-        return;
-    }
+    const msg = $("join-request-msg");
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = "送信中…";
 
     try {
-        if (btn) btn.disabled = true;
-        await col.joinRequest(teamId, uid).set({
-            displayName: getPreferredDisplayName(),
-            uid,
-            createdAt: TS(),
-        });
-        if (msgEl)
-            msgEl.textContent =
-                "参加申請しました！管理者の承認をお待ちください。";
+        // 既に member の場合は申請不要
+        const memSnap = await col.member(teamId, uid).get();
+        if (memSnap.exists && memSnap.data()?.isActive) {
+            if (msg) msg.textContent = "すでに参加済みです。";
+            return;
+        }
+
+        // 申請 doc は uid を docId にする（applyGuestUi の作りと一致）
+        await col.joinRequest(teamId, uid).set(
+            {
+                uid,
+                displayName: currentUser?.displayName || "",
+                status: "pending",
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
+
+        if (msg) msg.textContent = "参加申請を送信しました（承認待ち）";
     } catch (e) {
-        console.error(e);
-        if (msgEl) msgEl.textContent = "参加申請に失敗しました。";
+        console.error("submitJoinRequest failed:", e);
+        if (msg) msg.textContent = "送信に失敗しました。もう一度お試しください。";
     } finally {
         if (btn) btn.disabled = false;
     }
 }
+
 
 
 async function renderAdminJoinRequests() {
@@ -2359,61 +2353,56 @@ async function renderAdminJoinRequests() {
 
 // 管理者：承認
 async function approveJoinRequest(uid) {
-    if (!uid) return;
+    const teamId = getTeamIdFromQuery();
+    if (!teamId || !uid) return;
+
     try {
-        const teamId = getTeamId();
-        if (!teamId) {
-            alert("teamId が未選択です。");
-            return;
-        }
+        // 申請doc取得（表示名などを拾う）
+        const reqSnap = await col.joinRequest(teamId, uid).get();
+        const reqData = reqSnap.exists ? reqSnap.data() : {};
 
-        let displayName = "ゲスト";
-        try {
-            const reqSnap = await col.joinRequest(teamId, uid).get();
-            if (reqSnap.exists) {
-                displayName = reqSnap.data()?.displayName || displayName;
-            }
-        } catch (e) {
-            console.warn("read joinRequest failed", e);
-        }
-
+        // members/{uid} を作成（この時点でその人はチーム参加扱い）
         await col.member(teamId, uid).set(
             {
                 uid,
-                displayName,
-                role: "member",
+                displayName: reqData?.displayName || "",
                 isActive: true,
-                joinedAt: TS(),
-                updatedAt: TS(),
+                role: "member", // 承認された側は member にする（owner にしない）
+                joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true }
         );
 
+        // 申請は削除（または status approved にして残す運用でもOK）
         await col.joinRequest(teamId, uid).delete();
+
+        // 管理者の申請一覧を更新
         await renderAdminJoinRequests();
+        alert("承認しました！");
     } catch (e) {
-        console.error(e);
-        alert("承認に失敗しました。Rules/権限を確認してください。");
+        console.error("approveJoinRequest failed:", e);
+        alert("承認に失敗しました。コンソールを確認してください。");
     }
 }
+
 
 
 // 管理者：却下
 async function rejectJoinRequest(uid) {
-    if (!uid) return;
+    const teamId = getTeamIdFromQuery();
+    if (!teamId || !uid) return;
+
     try {
-        const teamId = getTeamId();
-        if (!teamId) {
-            alert("teamId が未選択です。");
-            return;
-        }
         await col.joinRequest(teamId, uid).delete();
         await renderAdminJoinRequests();
+        alert("却下しました。");
     } catch (e) {
-        console.error(e);
-        alert("却下に失敗しました。");
+        console.error("rejectJoinRequest failed:", e);
+        alert("却下に失敗しました。コンソールを確認してください。");
     }
 }
+
 
 
 function bindTeamUI() {
