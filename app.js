@@ -2147,6 +2147,13 @@ async function openTeam(teamId) {
     // memberなら通常UIへ
     applyMemberUi();
 
+    // admin（参加申請の承認）
+    showAdminPanelIfNeeded();
+    if (isCurrentUserAdmin()) {
+        await renderAdminJoinRequests();
+    }
+    currentEventId = getEventIdFromUrl();
+
     // 既存ルーティング（イベント一覧/詳細）を再描画
     currentEventId = getEventIdFromUrl();
     const listView = $("event-list-view");
@@ -2159,12 +2166,6 @@ async function openTeam(teamId) {
         if (listView) listView.style.display = "none";
         if (detailView) detailView.style.display = "block";
         await loadEvent();
-    }
-
-    // admin（参加申請の承認）
-    showAdminPanelIfNeeded();
-    if (isCurrentUserAdmin()) {
-        await renderAdminJoinRequests();
     }
 
     // 参加中チーム一覧も更新
