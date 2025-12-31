@@ -1687,66 +1687,75 @@ async function loadMemos(reset = false) {
         memoLastVisible = null;
     }
 
-    // members マップ（uid -> displayName）
-    const membersSnap = await col.members().get();
-    const memberNameMap = {};
-    membersSnap.forEach((mDoc) => {
-        const m = mDoc.data() || {};
-        memberNameMap[mDoc.id] = m.displayName || null;
-    });
+    try {
+        // members マップ（uid -> displayName）
+        const membersSnap = await col.members().get();
+        const memberNameMap = {};
+        membersSnap.forEach((mDoc) => {
+            const m = mDoc.data() || {};
+            memberNameMap[mDoc.id] = m.displayName || null;
+        });
 
-    let query = col.memos().orderBy("createdAt", "desc").limit(MEMO_PAGE_SIZE);
-    if (memoLastVisible) query = query.startAfter(memoLastVisible);
+        let query = col.memos().orderBy("createdAt", "desc").limit(MEMO_PAGE_SIZE);
+        if (memoLastVisible) query = query.startAfter(memoLastVisible);
 
-    const snap = await query.get();
-    if (snap.empty) {
-        if (reset) listDiv.innerHTML = "<p>まだメモはありません。</p>";
-        if (moreBtn) moreBtn.style.display = "none";
-        return;
-    }
-
-    if (moreBtn) moreBtn.style.display = "block";
-    memoLastVisible = snap.docs[snap.docs.length - 1];
-
-    snap.forEach((doc) => {
-        const data = doc.data() || {};
-        const authorName =
-            memberNameMap[data.authorUid] || data.authorName || "Unknown";
-
-        const createdAt = data.createdAt ? formatDateTime(data.createdAt) : "";
-
-        const item = document.createElement("div");
-        item.className = "memo-item";
-
-        const deletable = canDeleteMemo(data.authorUid);
-
-        item.innerHTML = `
-      <div class="memo-header">
-        <div class="memo-author">${escapeHtml(authorName)}</div>
-        <div class="memo-header-right">
-          <span class="memo-date">${createdAt}</span>
-          ${deletable
-                ? `<button class="memo-delete-btn" data-id="${doc.id}" data-author-uid="${data.authorUid}">🗑</button>`
-                : ""
-            }
-        </div>
-      </div>
-      <div class="memo-body">${escapeHtml(data.text || "")}</div>
-      <button class="memo-toggle-btn">続きを読む</button>
-    `;
-
-        listDiv.appendChild(item);
-    });
-
-    // 10 件未満なら「もっと見る」を隠す
-    if (moreBtn) {
-        if (snap.size < 10) {
-            moreBtn.style.display = "none";
-        } else {
-            moreBtn.style.display = "inline-block";
+        const snap = await query.get();
+        if (snap.empty) {
+            if (reset) listDiv.innerHTML = "<p>まだメモはありません。</p>";
+            if (moreBtn) moreBtn.style.display = "none";
+            return;
         }
+
+        if (moreBtn) moreBtn.style.display = "block";
+        memoLastVisible = snap.docs[snap.docs.length - 1];
+
+        snap.forEach((doc) => {
+            const data = doc.data() || {};
+            const authorName =
+                memberNameMap[data.authorUid] || data.authorName || "Unknown";
+
+            const createdAt = data.createdAt ? formatDateTime(data.createdAt) : "";
+
+            const item = document.createElement("div");
+            item.className = "memo-item";
+
+            const deletable = canDeleteMemo(data.authorUid);
+
+            item.innerHTML = `
+        <div class="memo-header">
+          <div class="memo-author">${escapeHtml(authorName)}</div>
+          <div class="memo-header-right">
+            <span class="memo-date">${createdAt}</span>
+            ${deletable
+                    ? `<button class="memo-delete-btn" data-id="${doc.id}" data-author-uid="${data.authorUid}">🗑</button>`
+                    : ""
+                }
+          </div>
+        </div>
+        <div class="memo-body">${escapeHtml(data.text || "")}</div>
+        <button class="memo-toggle-btn">続きを読む</button>
+      `;
+
+            listDiv.appendChild(item);
+        });
+
+        // 10 件未満なら「もっと見る」を隠す
+        if (moreBtn) {
+            if (snap.size < 10) {
+                moreBtn.style.display = "none";
+            } else {
+                moreBtn.style.display = "inline-block";
+            }
+        }
+    } catch (e) {
+        if (!isPermissionDenied(e)) {
+            console.error("loadMemos failed:", e);
+        }
+        if (reset) listDiv.innerHTML = "<p>メモを表示する権限がありません。</p>";
+        if (moreBtn) moreBtn.style.display = "none";
     }
 }
+
 
 // ========== チームUI（作成 / 参加 / 切替 / 参加申請） ==========
 
