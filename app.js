@@ -2703,7 +2703,6 @@ async function main() {
         console.log("=== main() 正常終了 ===");
     } catch (e) {
         if (isPermissionDenied(e)) {
-            console.warn("main() 権限エラー:", e);
             return;
         }
         console.error("main() でエラー:", e);
