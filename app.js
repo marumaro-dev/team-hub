@@ -2073,24 +2073,25 @@ async function applyGuestUi(teamDoc) {
 
     const requestBtn = $("join-request-btn");
 
+    // open 以外（invite）なら申請ボタンは不可
+    let canRequest = false;
+    if (teamDoc?.joinMode === "open") {
+        canRequest = true;
+    }
+
+    let requestMessage = "";
+    let requestStatus = "ready"; // ready | pending | disabled
+
     console.log("[debug] applyGuestUi init", {
         teamDoc,
         joinMode: teamDoc?.joinMode,
     });
-
-
-    // open 以外（invite）なら申請ボタンは不可
-    let canRequest = teamDoc?.joinMode === "open";
-
     console.log("[debug] canRequest initial", {
         canRequest,
         requestStatus,
         requestMessage,
     });
 
-
-    let requestMessage = "";
-    let requestStatus = "ready"; // ready | pending | disabled
     if (!teamDoc) {
         canRequest = false;
         requestStatus = "disabled";
