@@ -2147,12 +2147,7 @@ async function applyGuestUi(teamDoc) {
     }
 }
 
-$("join-request-btn")?.toggleAttribute("disabled", !canRequest);
-if (!canRequest) {
-    setText("join-request-msg", requestMessage);
-} else {
-    setText("join-request-msg", "");
-}
+
 
 function applyMemberUi() {
     // member：通常機能を表示（既存の描画ロジックに任せる）
