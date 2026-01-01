@@ -2068,6 +2068,12 @@ async function applyGuestUi(teamDoc) {
     show($("stats-panel"), false);
     show($("admin-panel"), false);
 
+    const listView = $("event-list-view");
+    const detailView = $("event-detail-view");
+    if (listView) listView.style.display = "block";
+    if (detailView) detailView.style.display = "none";
+
+
     const joinCard = $("join-request-card");
     show(joinCard, true);
     if (joinCard) {
