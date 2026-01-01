@@ -2073,8 +2073,22 @@ async function applyGuestUi(teamDoc) {
 
     const requestBtn = $("join-request-btn");
 
+    console.log("[debug] applyGuestUi init", {
+        teamDoc,
+        joinMode: teamDoc?.joinMode,
+    });
+
+
     // open 以外（invite）なら申請ボタンは不可
     let canRequest = teamDoc?.joinMode === "open";
+
+    console.log("[debug] canRequest initial", {
+        canRequest,
+        requestStatus,
+        requestMessage,
+    });
+
+
     let requestMessage = "";
     let requestStatus = "ready"; // ready | pending | disabled
     if (!teamDoc) {
@@ -2115,6 +2129,14 @@ async function applyGuestUi(teamDoc) {
     if (requestBtn) {
         requestBtn.textContent =
             requestStatus === "pending" ? "承認待ちです" : "参加申請する";
+
+        console.log("[debug] canRequest before render", {
+            canRequest,
+            requestStatus,
+            requestMessage,
+        });
+
+
         requestBtn.toggleAttribute("disabled", !canRequest);
     }
     if (!canRequest) {
