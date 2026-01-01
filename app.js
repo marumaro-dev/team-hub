@@ -2090,6 +2090,7 @@ async function applyGuestUi(teamDoc) {
             "このチームは招待制のため、管理者からの招待リンクが必要です。";
     }
 
+
     // 既に申請済みならボタンを無効化
     if (canRequest) {
         try {
