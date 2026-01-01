@@ -72,6 +72,10 @@ let currentEventId = null; // 選択中イベントID
 let currentEventData = null; // 現在表示中のイベントデータ
 let lineupCandidates = []; // 出席（◎/〇）メンバー一覧
 let lineupStarting = []; // 保存済みスタメン
+let currentUser = null; // firebase.auth().currentUser
+let currentUserRole = "member";
+let joinRequestWatcherUnsub = null;
+
 
 // ===== 追加：teamId（URLで切り替え可能）=====
 // ===== チーム選択（URL ?teamId=... / localStorage）=====
@@ -190,9 +194,6 @@ const col = {
 };
 
 const TS = firebase.firestore.FieldValue.serverTimestamp;
-
-let currentUser = null; // firebase.auth().currentUser
-let currentUserRole = "member";
 
 // LIFF（任意）：表示名取得に使う（Firebase Auth の uid とは別）
 let liffProfile = null; // { userId, displayName }
