@@ -2068,11 +2068,16 @@ async function applyGuestUi(teamDoc) {
     show($("stats-panel"), false);
     show($("admin-panel"), false);
 
-    show($("join-request-card"), true);
+    const joinCard = $("join-request-card");
+    show(joinCard, true);
+    if (joinCard) {
+        joinCard.classList.remove("hidden");
+        joinCard.style.display = "block";
+    }
     const name = teamDoc?.name ? `チーム：${teamDoc.name}` : "";
     setText("join-request-team", name);
+    setText("event-list", "");
 
-    const requestBtn = $("join-request-btn");
 
     // open 以外（invite）なら申請ボタンは不可
     let canRequest = false;
