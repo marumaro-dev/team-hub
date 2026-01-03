@@ -2067,6 +2067,7 @@ async function applyGuestUi(teamDoc) {
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
+    show($("team-panel"), false);
 
     const listView = $("event-list-view");
     const detailView = $("event-detail-view");
@@ -2079,7 +2080,9 @@ async function applyGuestUi(teamDoc) {
     if (joinCard) {
         joinCard.classList.remove("hidden");
         joinCard.style.display = "block";
+        joinCard.scrollIntoView({ block: "center", behavior: "smooth" });
     }
+
     const name = teamDoc?.name ? `チーム：${teamDoc.name}` : "";
     setText("join-request-team", name);
     setText("event-list", "");
