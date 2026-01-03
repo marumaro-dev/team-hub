@@ -2068,24 +2068,25 @@ async function applyGuestUi(teamDoc) {
     show($("stats-panel"), false);
     show($("admin-panel"), false);
     show($("team-panel"), false);
-
     const listView = $("event-list-view");
     const detailView = $("event-detail-view");
     if (listView) listView.style.display = "block";
     if (detailView) detailView.style.display = "none";
-
 
     const joinCard = $("join-request-card");
     show(joinCard, true);
     if (joinCard) {
         joinCard.classList.remove("hidden");
         joinCard.style.display = "block";
+        const teamCard = $("team-card");
+        if (teamCard && joinCard.parentElement !== teamCard.parentElement) {
+            teamCard.insertAdjacentElement("afterend", joinCard);
+        }
         joinCard.scrollIntoView({ block: "center", behavior: "smooth" });
     }
 
-    const name = teamDoc?.name ? `チーム：${teamDoc.name}` : "";
-    setText("join-request-team", name);
     setText("event-list", "");
+
 
 
     // open 以外（invite）なら申請ボタンは不可
