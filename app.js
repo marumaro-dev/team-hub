@@ -604,7 +604,19 @@ async function loadEventList() {
             } @${data.place || ""}`;
         item.onclick = async () => {
             currentEventId = doc.id;
+            const listView = document.getElementById("event-list-view");
+            const detailView = document.getElementById("event-detail-view");
+            const myView = document.getElementById("my-attendance-view");
+            if (myView) myView.style.display = "none";
+            if (listView) listView.style.display = "none";
+            if (detailView) detailView.style.display = "block";
+            const url = new URL(location.href);
+            url.searchParams.set("eventId", currentEventId);
+            history.replaceState(null, "", url.toString());
+            setupBackButton();
+            await loadEvent();
             await loadAttendanceList();
+            setupButtons();
         };
         list.appendChild(item);
     });
@@ -2078,12 +2090,6 @@ async function applyGuestUi(teamDoc) {
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
-    // 20260104コメントアウト
-    // show($("team-panel"), false);
-    // const listView = $("event-list-view");
-    // const detailView = $("event-detail-view");
-    // if (listView) listView.style.display = "block";
-    // if (detailView) detailView.style.display = "none";
 
     const joinCard = $("join-request-card");
     show(joinCard, true);
@@ -2099,10 +2105,8 @@ async function applyGuestUi(teamDoc) {
     const name = teamDoc?.name ? `チーム：${teamDoc.name}` : "";
     setText("join-request-team", name);
     setText("event-list", "");
+
     const requestBtn = $("join-request-btn");
-
-
-
 
     // open 以外（invite）なら申請ボタンは不可
     let canRequest = false;
@@ -2155,20 +2159,12 @@ async function applyGuestUi(teamDoc) {
         }
     }
 
-    // 20260104コメントアウト
-    // if (requestBtn) {
-    //     requestBtn.textContent =
-    //         requestStatus === "pending" ? "承認待ちです" : "参加申請する";
+    if (requestBtn) {
+        requestBtn.textContent =
+            requestStatus === "pending" ? "承認待ちです" : "参加申請する";
+        requestBtn.toggleAttribute("disabled", !canRequest);
+    }
 
-    //     console.log("[debug] canRequest before render", {
-    //         canRequest,
-    //         requestStatus,
-    //         requestMessage,
-    //     });
-
-
-    //     requestBtn.toggleAttribute("disabled", !canRequest);
-    // }
     if (!canRequest) {
         setText("join-request-msg", requestMessage);
     } else {
@@ -2233,17 +2229,6 @@ async function openTeam(teamId) {
     }
     updateTeamHeader(teamDoc);
 
-    // 20260104コメントアウト
-    // 自分が member か判定（存在すれば role も読む）
-    // if (TEAM_ID) {
-    //     await ensureMember(
-    //         TEAM_ID,
-    //         currentUser.uid,
-    //         currentUser.displayName || "ゲスト",
-    //         "member"
-    //     );
-    // } // memberならrole取得＆軽い更新、非memberならguest
-
     // 自分が member か判定（書き込みはしない）
     const isMemberNow = await loadMyMemberInfoReadOnly(tid);
 
@@ -2283,6 +2268,7 @@ async function openTeam(teamId) {
 
 async function createTeamFromUi() {
     const name = normalizeTeamId($("create-team-name")?.value);
+    const requestedTeamId = normalizeTeamId($("create-team-id")?.value);
     const sportType = $("create-team-sport")?.value || "other";
     const joinMode = $("create-team-joinmode")?.value || "open";
 
@@ -2301,15 +2287,35 @@ async function createTeamFromUi() {
     }
 
     // teamId を生成（短め）
+    if (
+        requestedTeamId &&
+        !/^[a-zA-Z0-9_-]+$/.test(requestedTeamId)
+    ) {
+        if (resultEl)
+            resultEl.textContent =
+                "teamId は英数字・ハイフン・アンダースコアのみ使用できます。";
+        return;
+    }
     const teamId =
+        requestedTeamId ||
         "t_" +
         Date.now().toString(36) +
         "_" +
         Math.random().toString(36).slice(2, 8);
 
     try {
+        const teamRef = col.teams().doc(teamId);
+        if (requestedTeamId) {
+            const exists = await teamRef.get();
+            if (exists.exists) {
+                if (resultEl)
+                    resultEl.textContent =
+                        "指定した teamId は既に使用されています。";
+                return;
+            }
+        }
         // teams/{teamId}
-        await col.team().doc(teamId).set({
+        await teamRef.set({
             createdAt: TS(),
             name,
             ownerUid: uid,
@@ -2319,7 +2325,7 @@ async function createTeamFromUi() {
         });
 
         // members/{uid} を owner で作成（bootstrap）
-        await col.team().doc(teamId).collection("members").doc(uid).set({
+        await teamRef.collection("members").doc(uid).set({
             displayName: getPreferredDisplayName(),
             isActive: true,
             joinedAt: TS(),
@@ -2483,8 +2489,7 @@ async function approveJoinRequest(uid) {
             console.warn("read joinRequest failed", e);
         }
 
-        // members へ追加（role: member）
-        // members/{uid} を作成（この時点でその人はチーム参加扱い）
+        // members へ追加（role: member） members/{uid} を作成（この時点でその人はチーム参加扱い）
         await col.member(teamId, uid).set(
             {
                 uid,
@@ -2526,7 +2531,6 @@ async function rejectJoinRequest(uid) {
         alert("却下に失敗しました。");
     }
 }
-
 
 
 function bindTeamUI() {

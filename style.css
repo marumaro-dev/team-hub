@@ -123,6 +123,10 @@ button:hover {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
+#open-my-attendance-btn {
+    margin-top: 12px;
+}
+
 button:active {
     transform: translateY(0);
     box-shadow: none;
