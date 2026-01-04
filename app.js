@@ -362,6 +362,22 @@ function formatDateWithWeekdayString(dateStr) {
     return `${y}-${mm}-${dd}(${w})`;
 }
 
+
+function parseEventDate(dateStr) {
+    if (!dateStr) return null;
+    const base = dateStr.slice(0, 10);
+    const parts = base.split("-");
+    if (parts.length !== 3) return null;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (!y || !m || !d) return null;
+    const dateObj = new Date(y, m - 1, d);
+    if (isNaN(dateObj.getTime())) return null;
+    dateObj.setHours(0, 0, 0, 0);
+    return dateObj;
+}
+
 // 管理者の LINE userId
 // ★ 追加：現在のユーザーが管理者かどうか（下の role 版を使用）
 // 出席扱いにするステータス
@@ -429,16 +445,21 @@ function convertEventTypeLabel(type) {
 // ========== 単一イベント保存・汎用保存 ==========
 async function saveResponseFor(eventId, uid, status, comment = "") {
     const responseRef = col.response(eventId, uid);
-    await db.collection("teams").doc(teamId)
-        .collection("members").doc(uid)
-        .set({
-            uid,                       // ✅必須
-            displayName: displayName || "",
-            role: role || "member",
-            isActive: true,            // ✅クエリで使ってるので必須
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
+    const teamId = getTeamId();
+    const now = TS();
+    await responseRef.set(
+        {
+            teamId,
+            eventId,
+            uid,
+            status,
+            comment,
+            displayName: getPreferredDisplayName(),
+            updatedAt: now,
+            createdAt: now,
+        },
+        { merge: true }
+    );
 }
 
 
@@ -466,21 +487,37 @@ async function loadMyAttendance() {
 
     container.textContent = "読み込み中...";
 
-    const eventsSnap = await col
-        .events()
-        .orderBy("date", "desc")
-        .limit(20)
-        .get();
+    let eventsSnap;
+    try {
+        eventsSnap = await col
+            .events()
+            .orderBy("date", "desc")
+            .limit(20)
+            .get();
+    } catch (e) {
+        if (!isPermissionDenied(e)) {
+            console.error("loadMyAttendance events failed:", e);
+        }
+        container.textContent =
+            "イベント一覧を読み込めませんでした。";
+        return;
+    }
 
-    const myRespSnap = await db
-        .collectionGroup("responses")
-        .where("teamId", "==", TEAM_ID)
-        .where("uid", "==", currentUser.uid)
-        .get();
+    const responseSnaps = await Promise.all(
+        eventsSnap.docs.map((doc) =>
+            col.response(doc.id, currentUser.uid).get().catch((e) => {
+                if (!isPermissionDenied(e)) {
+                    console.warn("loadMyAttendance response failed:", e);
+                }
+                return null;
+            })
+        )
+    );
 
     const respByEvent = {};
-    myRespSnap.forEach((doc) => {
-        const d = doc.data() || {};
+    responseSnaps.forEach((snap) => {
+        if (!snap || !snap.exists) return;
+        const d = snap.data() || {};
         if (d.eventId) respByEvent[d.eventId] = d;
     });
 
@@ -594,32 +631,164 @@ async function loadEventList() {
     if (!list) return;
     list.textContent = "読み込み中...";
 
-    const snap = await col.events().orderBy("date", "desc").limit(50).get();
-    list.innerHTML = "";
-    snap.forEach((doc) => {
-        const data = doc.data() || {};
-        const item = document.createElement("div");
-        item.className = "event-item";
-        item.textContent = `${data.date || ""} ${data.time || ""} ${data.title || ""
-            } @${data.place || ""}`;
-        item.onclick = async () => {
-            currentEventId = doc.id;
-            const listView = document.getElementById("event-list-view");
-            const detailView = document.getElementById("event-detail-view");
-            const myView = document.getElementById("my-attendance-view");
-            if (myView) myView.style.display = "none";
-            if (listView) listView.style.display = "none";
-            if (detailView) detailView.style.display = "block";
-            const url = new URL(location.href);
-            url.searchParams.set("eventId", currentEventId);
-            history.replaceState(null, "", url.toString());
-            setupBackButton();
-            await loadEvent();
-            await loadAttendanceList();
-            setupButtons();
-        };
-        list.appendChild(item);
+    let snap;
+    try {
+        snap = await col.events().orderBy("date", "desc").limit(50).get();
+    } catch (e) {
+        if (!isPermissionDenied(e)) {
+            console.error("loadEventList failed:", e);
+        }
+        list.textContent = "イベントを読み込めませんでした。";
+        return;
+    }
+
+    const events = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() || {}),
+    }));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcoming = [];
+    const past = [];
+    events.forEach((event) => {
+        const eventDate = parseEventDate(event.date || "");
+        if (eventDate && eventDate < today) {
+            past.push(event);
+        } else {
+            upcoming.push(event);
+        }
     });
+
+    list.innerHTML = "";
+    const renderSection = (title, items, { collapsible = false } = {}) => {
+        const section = document.createElement("section");
+        section.className = "event-section";
+
+        const header = document.createElement("h3");
+        header.className = "event-section-title";
+        header.textContent = title;
+
+        const table = document.createElement("div");
+        table.className = "event-table";
+        table.innerHTML = `
+            <div class="event-row event-row--header">
+                <div class="event-col event-col-date">日付</div>
+                <div class="event-col event-col-title">内容</div>
+                <div class="event-col event-col-count">参加人数</div>
+                <div class="event-col event-col-action">操作</div>
+            </div>
+        `;
+
+        const addRows = () => {
+            if (items.length === 0) {
+                const empty = document.createElement("div");
+                empty.className = "event-row event-row--empty";
+                empty.textContent = "イベントがありません。";
+                table.appendChild(empty);
+                return;
+            }
+
+            items.forEach((event) => {
+                const row = document.createElement("div");
+                row.className = "event-row";
+                row.dataset.eventId = event.id;
+                row.innerHTML = `
+                    <div class="event-col event-col-date">
+                        ${escapeHtml(formatDateWithWeekdayString(event.date || ""))}
+                    </div>
+                    <div class="event-col event-col-title">
+                        <div class="event-title-line">${escapeHtml(event.title || "出欠確認")}</div>
+                        <div class="event-meta-line">
+                            ${escapeHtml(event.time || "未定")} /
+                            ${escapeHtml(event.place || "未定")}
+                        </div>
+                    </div>
+                    <div class="event-col event-col-count">
+                        <span class="event-count-loading">集計中…</span>
+                    </div>
+                    <div class="event-col event-col-action">
+                        <button class="pill-button event-open-btn" type="button">開く</button>
+                    </div>
+                `;
+
+                row.querySelector(".event-open-btn")?.addEventListener(
+                    "click",
+                    async () => {
+                        currentEventId = event.id;
+                        const listView =
+                            document.getElementById("event-list-view");
+                        const detailView =
+                            document.getElementById("event-detail-view");
+                        const myView =
+                            document.getElementById("my-attendance-view");
+                        if (myView) myView.style.display = "none";
+                        if (listView) listView.style.display = "none";
+                        if (detailView) detailView.style.display = "block";
+                        const url = new URL(location.href);
+                        url.searchParams.set("eventId", currentEventId);
+                        history.replaceState(null, "", url.toString());
+                        setupBackButton();
+                        await loadEvent();
+                        await loadAttendanceList();
+                        setupButtons();
+                    }
+                );
+
+                table.appendChild(row);
+            });
+        };
+        if (collapsible) {
+            const details = document.createElement("details");
+            details.className = "event-accordion";
+            details.innerHTML = `
+                <summary>
+                    <span class="event-accordion-title">${escapeHtml(title)}</span>
+                    <span class="event-accordion-toggle">表示 / 非表示</span>
+                </summary>
+            `;
+            details.appendChild(table);
+            section.appendChild(details);
+        } else {
+            section.appendChild(header);
+            section.appendChild(table);
+        }
+
+        addRows();
+        return section;
+    };
+
+    list.appendChild(renderSection("これからのイベント", upcoming));
+    const pastSection = renderSection("過去のイベント", past, {
+        collapsible: true,
+    });
+    list.appendChild(pastSection);
+
+    const rows = list.querySelectorAll(".event-row[data-event-id]");
+    await Promise.all(
+        Array.from(rows).map(async (row) => {
+            const eventId = row.dataset.eventId;
+            const countEl = row.querySelector(".event-col-count");
+            if (!eventId || !countEl) return;
+            try {
+                const respSnap = await col.responses(eventId).get();
+                let present = 0;
+                let late = 0;
+                respSnap.forEach((doc) => {
+                    const status = doc.data()?.status;
+                    if (status === "present") present += 1;
+                    if (status === "late") late += 1;
+                });
+                const total = present + late;
+                countEl.textContent = `${total}人 (◎${present}/○${late})`;
+            } catch (e) {
+                if (!isPermissionDenied(e)) {
+                    console.warn("attendance summary failed:", e);
+                }
+                countEl.textContent = "集計不可";
+            }
+        })
+    );
 }
 
 // 一覧 ←→ 詳細 の戻るボタン
@@ -2172,7 +2341,6 @@ async function applyGuestUi(teamDoc) {
     }
 }
 
-
 function bindJoinRequestUI() {
     const btn = $("join-request-btn");
     if (!btn) return;
@@ -2201,7 +2369,6 @@ function watchMyJoinRequestStatus(teamId) {
         }
     });
 }
-
 
 function applyMemberUi() {
     // member：通常機能を表示（既存の描画ロジックに任せる）
@@ -2286,7 +2453,7 @@ async function createTeamFromUi() {
         return;
     }
 
-    // teamId を生成（短め）
+    // teamId を生成
     if (
         requestedTeamId &&
         !/^[a-zA-Z0-9_-]+$/.test(requestedTeamId)
@@ -2314,6 +2481,7 @@ async function createTeamFromUi() {
                 return;
             }
         }
+
         // teams/{teamId}
         await teamRef.set({
             createdAt: TS(),
