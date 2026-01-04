@@ -326,6 +326,27 @@ tr:nth-child(even) td {
     font-size: 13px;
 }
 
+#join-request-btn {
+    background: linear-gradient(135deg, #b12234, #e35b6a);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 22px;
+    box-shadow: 0 8px 16px rgba(177, 34, 52, 0.25);
+    letter-spacing: 0.02em;
+}
+
+#join-request-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(177, 34, 52, 0.3);
+}
+
+#join-request-btn:disabled {
+    background: #c9c9c9;
+    color: #f7f7f7;
+    box-shadow: none;
+    transform: none;
+}
+
 .ghost-button {
     padding: 6px 16px;
     border-radius: 999px;
