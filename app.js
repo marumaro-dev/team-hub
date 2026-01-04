@@ -195,6 +195,14 @@ const col = {
 
 const TS = firebase.firestore.FieldValue.serverTimestamp;
 
+let currentUser = null; // firebase.auth().currentUser
+let currentUserRole = "member";
+
+// Guard variables to avoid ReferenceError if legacy/global code accesses them.
+let canRequest = false;
+let requestMessage = "";
+let joinRequestWatcherUnsub = null;
+
 // LIFF（任意）：表示名取得に使う（Firebase Auth の uid とは別）
 let liffProfile = null; // { userId, displayName }
 
@@ -1697,7 +1705,10 @@ async function loadMemos(reset = false) {
             memberNameMap[mDoc.id] = m.displayName || null;
         });
 
-        let query = col.memos().orderBy("createdAt", "desc").limit(MEMO_PAGE_SIZE);
+        let query = col
+            .memos()
+            .orderBy("createdAt", "desc")
+            .limit(MEMO_PAGE_SIZE);
         if (memoLastVisible) query = query.startAfter(memoLastVisible);
 
         const snap = await query.get();
@@ -1715,7 +1726,9 @@ async function loadMemos(reset = false) {
             const authorName =
                 memberNameMap[data.authorUid] || data.authorName || "Unknown";
 
-            const createdAt = data.createdAt ? formatDateTime(data.createdAt) : "";
+            const createdAt = data.createdAt
+                ? formatDateTime(data.createdAt)
+                : "";
 
             const item = document.createElement("div");
             item.className = "memo-item";
@@ -1752,7 +1765,9 @@ async function loadMemos(reset = false) {
         if (!isPermissionDenied(e)) {
             console.error("loadMemos failed:", e);
         }
-        if (reset) listDiv.innerHTML = "<p>メモを表示する権限がありません。</p>";
+        if (reset)
+            listDiv.innerHTML =
+                "<p>メモを表示する権限がありません。</p>";
         if (moreBtn) moreBtn.style.display = "none";
     }
 }
@@ -2050,6 +2065,16 @@ function applyNotSelectedUi() {
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
+    show($("team-panel"), false);
+    const listView = $("event-list-view");
+    const detailView = $("event-detail-view");
+    if (listView) listView.style.display = "block";
+    if (detailView) detailView.style.display = "none";
+    show($("team-panel"), false);
+    const listView = $("event-list-view");
+    const detailView = $("event-detail-view");
+    if (listView) listView.style.display = "block";
+    if (detailView) detailView.style.display = "none";
 
     const myBtn = $("open-my-attendance-btn");
     if (myBtn) myBtn.style.display = "none";
@@ -2067,11 +2092,12 @@ async function applyGuestUi(teamDoc) {
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
-    show($("team-panel"), false);
-    const listView = $("event-list-view");
-    const detailView = $("event-detail-view");
-    if (listView) listView.style.display = "block";
-    if (detailView) detailView.style.display = "none";
+    // 20260104コメントアウト
+    // show($("team-panel"), false);
+    // const listView = $("event-list-view");
+    // const detailView = $("event-detail-view");
+    // if (listView) listView.style.display = "block";
+    // if (detailView) detailView.style.display = "none";
 
     const joinCard = $("join-request-card");
     show(joinCard, true);
@@ -2084,8 +2110,11 @@ async function applyGuestUi(teamDoc) {
         }
         joinCard.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-
+    const name = teamDoc?.name ? `チーム：${teamDoc.name}` : "";
+    setText("join-request-team", name);
     setText("event-list", "");
+    const requestBtn = $("join-request-btn");
+
 
 
 
@@ -2094,7 +2123,6 @@ async function applyGuestUi(teamDoc) {
     if (teamDoc?.joinMode === "open") {
         canRequest = true;
     }
-
     let requestMessage = "";
     let requestStatus = "ready"; // ready | pending | disabled
 
@@ -2107,7 +2135,6 @@ async function applyGuestUi(teamDoc) {
         requestStatus,
         requestMessage,
     });
-
     if (!teamDoc) {
         canRequest = false;
         requestStatus = "disabled";
@@ -2120,7 +2147,6 @@ async function applyGuestUi(teamDoc) {
         requestMessage =
             "このチームは招待制のため、管理者からの招待リンクが必要です。";
     }
-
 
     // 既に申請済みならボタンを無効化
     if (canRequest) {
@@ -2143,19 +2169,20 @@ async function applyGuestUi(teamDoc) {
         }
     }
 
-    if (requestBtn) {
-        requestBtn.textContent =
-            requestStatus === "pending" ? "承認待ちです" : "参加申請する";
+    // 20260104コメントアウト
+    // if (requestBtn) {
+    //     requestBtn.textContent =
+    //         requestStatus === "pending" ? "承認待ちです" : "参加申請する";
 
-        console.log("[debug] canRequest before render", {
-            canRequest,
-            requestStatus,
-            requestMessage,
-        });
+    //     console.log("[debug] canRequest before render", {
+    //         canRequest,
+    //         requestStatus,
+    //         requestMessage,
+    //     });
 
 
-        requestBtn.toggleAttribute("disabled", !canRequest);
-    }
+    //     requestBtn.toggleAttribute("disabled", !canRequest);
+    // }
     if (!canRequest) {
         setText("join-request-msg", requestMessage);
     } else {
@@ -2163,6 +2190,35 @@ async function applyGuestUi(teamDoc) {
     }
 }
 
+
+function bindJoinRequestUI() {
+    const btn = $("join-request-btn");
+    if (!btn) return;
+    btn.removeEventListener("click", submitJoinRequest);
+    btn.addEventListener("click", submitJoinRequest);
+}
+
+function watchMyJoinRequestStatus(teamId) {
+    const uid = firebase.auth().currentUser?.uid;
+    if (!uid || !teamId) return;
+
+    if (joinRequestWatcherUnsub) {
+        joinRequestWatcherUnsub();
+        joinRequestWatcherUnsub = null;
+    }
+
+    const memberRef = col.member(teamId, uid);
+    joinRequestWatcherUnsub = memberRef.onSnapshot((doc) => {
+        if (doc.exists) {
+            const data = doc.data() || {};
+            currentUserRole = data.role || "member";
+            joinRequestWatcherUnsub?.();
+            joinRequestWatcherUnsub = null;
+            applyMemberUi();
+            showAdminPanelIfNeeded();
+        }
+    });
+}
 
 
 function applyMemberUi() {
@@ -2191,29 +2247,29 @@ async function openTeam(teamId) {
     }
     updateTeamHeader(teamDoc);
 
+    // 20260104コメントアウト
     // 自分が member か判定（存在すれば role も読む）
-    if (TEAM_ID) {
-        await ensureMember(
-            TEAM_ID,
-            currentUser.uid,
-            currentUser.displayName || "ゲスト",
-            "member"
-        );
-    } // memberならrole取得＆軽い更新、非memberならguest
+    // if (TEAM_ID) {
+    //     await ensureMember(
+    //         TEAM_ID,
+    //         currentUser.uid,
+    //         currentUser.displayName || "ゲスト",
+    //         "member"
+    //     );
+    // } // memberならrole取得＆軽い更新、非memberならguest
 
-    if (currentUserRole === "guest") {
+    // 自分が member か判定（書き込みはしない）
+    const isMemberNow = await loadMyMemberInfoReadOnly(tid);
+
+    if (!isMemberNow || currentUserRole === "guest") {
         await applyGuestUi(teamDoc);
+        bindJoinRequestUI();
+        watchMyJoinRequestStatus(tid);
         return;
     }
 
     // memberなら通常UIへ
     applyMemberUi();
-
-    // admin（参加申請の承認）
-    showAdminPanelIfNeeded();
-    if (isCurrentUserAdmin()) {
-        await renderAdminJoinRequests();
-    }
 
     // 既存ルーティング（イベント一覧/詳細）を再描画
     currentEventId = getEventIdFromUrl();
@@ -2227,6 +2283,12 @@ async function openTeam(teamId) {
         if (listView) listView.style.display = "none";
         if (detailView) detailView.style.display = "block";
         await loadEvent();
+    }
+
+    // admin（参加申請の承認）
+    showAdminPanelIfNeeded();
+    if (isCurrentUserAdmin()) {
+        await renderAdminJoinRequests();
     }
 
     // 参加中チーム一覧も更新
@@ -2356,9 +2418,6 @@ async function submitJoinRequest() {
     }
 }
 
-
-
-
 async function renderAdminJoinRequests() {
     const box = $("admin-join-requests-list");
     if (!box) return;
@@ -2419,23 +2478,35 @@ async function renderAdminJoinRequests() {
 
 // 管理者：承認
 async function approveJoinRequest(uid) {
-    const teamId = getTeamIdFromQuery();
-    if (!teamId || !uid) return;
-
+    if (!uid) return;
     try {
-        // 申請doc取得（表示名などを拾う）
-        const reqSnap = await col.joinRequest(teamId, uid).get();
-        const reqData = reqSnap.exists ? reqSnap.data() : {};
+        const teamId = getTeamId();
+        if (!teamId) {
+            alert("teamId が未選択です。");
+            return;
+        }
+        // 申請内容を読む（表示名を引き継ぐ）
+        let displayName = "ゲスト";
+        try {
+            // 申請doc取得（表示名などを拾う）
+            const reqSnap = await col.joinRequest(teamId, uid).get();
+            if (reqSnap.exists) {
+                displayName = reqSnap.data()?.displayName || displayName;
+            }
+        } catch (e) {
+            console.warn("read joinRequest failed", e);
+        }
 
+        // members へ追加（role: member）
         // members/{uid} を作成（この時点でその人はチーム参加扱い）
         await col.member(teamId, uid).set(
             {
                 uid,
-                displayName: reqData?.displayName || "",
+                displayName,
+                role: "member",
                 isActive: true,
-                role: "member", // 承認された側は member にする（owner にしない）
-                joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                joinedAt: TS(),
+                updatedAt: TS(),
             },
             { merge: true }
         );
@@ -2445,10 +2516,9 @@ async function approveJoinRequest(uid) {
 
         // 管理者の申請一覧を更新
         await renderAdminJoinRequests();
-        alert("承認しました！");
     } catch (e) {
-        console.error("approveJoinRequest failed:", e);
-        alert("承認に失敗しました。コンソールを確認してください。");
+        console.error(e);
+        alert("承認に失敗しました。Rules/権限を確認してください。");
     }
 }
 
@@ -2456,16 +2526,18 @@ async function approveJoinRequest(uid) {
 
 // 管理者：却下
 async function rejectJoinRequest(uid) {
-    const teamId = getTeamIdFromQuery();
-    if (!teamId || !uid) return;
-
+    if (!uid) return;
     try {
+        const teamId = getTeamId();
+        if (!teamId) {
+            alert("teamId が未選択です。");
+            return;
+        }
         await col.joinRequest(teamId, uid).delete();
         await renderAdminJoinRequests();
-        alert("却下しました。");
     } catch (e) {
-        console.error("rejectJoinRequest failed:", e);
-        alert("却下に失敗しました。コンソールを確認してください。");
+        console.error(e);
+        alert("却下に失敗しました。");
     }
 }
 
@@ -2649,18 +2721,23 @@ async function main() {
         updateTeamHeader(teamDoc || { id: tid, name: "(取得不可)" });
 
         const isMemberNow = await loadMyMemberInfoReadOnly(tid);
+        if (!isMemberNow || currentUserRole === "guest") {
+            // ★ここで ensureMember しない！！（Rulesで弾かれる）
+            await applyGuestUi(teamDoc);
 
-        console.log("[debug] openTeam role check", {
-            tid,
-            isMemberNow,
-            currentUserRole,
-        });
+            console.log("[debug] openTeam role check", {
+                tid,
+                isMemberNow,
+                currentUserRole,
+            });
 
 
-        // 未所属なので guest UI で停止…のところで
-        bindJoinRequestUI(getTeamId());
-        watchMyJoinRequestStatus(getTeamId());
-
+            // 未所属なので guest UI で停止…のところで
+            bindJoinRequestUI();
+            watchMyJoinRequestStatus(tid);
+            console.log("未所属なので guest UI で停止");
+            return;
+        }
         // ⑤ ここから先は「所属済み」のユーザーだけ
         applyMemberUi();
 
