@@ -195,13 +195,9 @@ const col = {
 
 const TS = firebase.firestore.FieldValue.serverTimestamp;
 
-let currentUser = null; // firebase.auth().currentUser
-let currentUserRole = "member";
-
 // Guard variables to avoid ReferenceError if legacy/global code accesses them.
 let canRequest = false;
 let requestMessage = "";
-let joinRequestWatcherUnsub = null;
 
 // LIFF（任意）：表示名取得に使う（Firebase Auth の uid とは別）
 let liffProfile = null; // { userId, displayName }
@@ -2059,22 +2055,12 @@ function applyNotSelectedUi() {
     const detailView = $("event-detail-view");
     if (listView) listView.style.display = "block";
     if (detailView) detailView.style.display = "none";
-
     // イベント一覧などは見せない（混乱防止）
     show($("event-list"), false);
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
     show($("team-panel"), false);
-    const listView = $("event-list-view");
-    const detailView = $("event-detail-view");
-    if (listView) listView.style.display = "block";
-    if (detailView) detailView.style.display = "none";
-    show($("team-panel"), false);
-    const listView = $("event-list-view");
-    const detailView = $("event-detail-view");
-    if (listView) listView.style.display = "block";
-    if (detailView) detailView.style.display = "none";
 
     const myBtn = $("open-my-attendance-btn");
     if (myBtn) myBtn.style.display = "none";
