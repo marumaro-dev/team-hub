@@ -200,7 +200,9 @@ p {
 
 .event-accordion[open] summary {
     border-bottom: 1px solid #f4d7dd;
+
 }/* イベント一覧 */
+/* イベント一覧 */
 .event-section {
     margin-top: 16px;
 }
@@ -298,6 +300,55 @@ p {
     border-bottom: 1px solid #f4d7dd;
 }
 
+/* 募集掲示板 */
+#recruitment-board .form-row {
+    margin-bottom: 8px;
+}
+
+#recruitment-board textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.recruitment-item {
+    border: 1px solid #f1c7cf;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+    margin-bottom: 12px;
+}
+
+.recruitment-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+}
+
+.recruitment-type {
+    color: #b12234;
+    font-weight: 700;
+}
+
+.recruitment-title {
+    font-weight: 700;
+    margin: 6px 0;
+}
+
+.recruitment-meta {
+    font-size: 12px;
+    color: #666;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.recruitment-note {
+    font-size: 12px;
+    color: #444;
+    margin: 6px 0 10px;
+}
+
 /* ボタン共通 */
 button {
     border-radius: 999px;
@@ -309,6 +360,10 @@ button {
     color: #424040;
     transition: background 0.15s ease, transform 0.05s ease,
         box-shadow 0.15s ease;
+}
+
+#open-my-attendance-btn {
+    margin-top: 12px;
 }
 
 button:hover {

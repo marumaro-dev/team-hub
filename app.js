@@ -74,6 +74,8 @@ let lineupCandidates = []; // 出席（◎/〇）メンバー一覧
 let lineupStarting = []; // 保存済みスタメン
 let currentUser = null; // firebase.auth().currentUser
 let currentUserRole = "member";
+let canRequest = false;
+let requestMessage = "";
 let joinRequestWatcherUnsub = null;
 
 
@@ -191,13 +193,19 @@ const col = {
     joinRequests: (teamId = getTeamId()) =>
         col.team(teamId).collection("joinRequests"),
     joinRequest: (teamId, requestId) => col.joinRequests(teamId).doc(requestId),
+
+    // --- recruitments ---
+    recruitments: (teamId = getTeamId()) =>
+        col.team(teamId).collection("recruitments"),
+    recruitment: (teamId, recruitmentId) =>
+        col.recruitments(teamId).doc(recruitmentId),
+    recruitmentApplications: (teamId, recruitmentId) =>
+        col.recruitment(teamId, recruitmentId).collection("applications"),
+    recruitmentApplication: (teamId, recruitmentId, uid) =>
+        col.recruitmentApplications(teamId, recruitmentId).doc(uid),
 };
 
 const TS = firebase.firestore.FieldValue.serverTimestamp;
-
-// Guard variables to avoid ReferenceError if legacy/global code accesses them.
-let canRequest = false;
-let requestMessage = "";
 
 // LIFF（任意）：表示名取得に使う（Firebase Auth の uid とは別）
 let liffProfile = null; // { userId, displayName }
@@ -661,6 +669,7 @@ async function loadEventList() {
     });
 
     list.innerHTML = "";
+
     const renderSection = (title, items, { collapsible = false } = {}) => {
         const section = document.createElement("section");
         section.className = "event-section";
@@ -738,6 +747,7 @@ async function loadEventList() {
                 table.appendChild(row);
             });
         };
+
         if (collapsible) {
             const details = document.createElement("details");
             details.className = "event-accordion";
@@ -789,6 +799,146 @@ async function loadEventList() {
             }
         })
     );
+}
+
+async function loadRecruitments() {
+    const listEl = document.getElementById("recruitment-list");
+    if (!listEl) return;
+    listEl.textContent = "読み込み中...";
+
+    let snap;
+    try {
+        snap = await col
+            .recruitments()
+            .orderBy("createdAt", "desc")
+            .limit(30)
+            .get();
+    } catch (e) {
+        if (!isPermissionDenied(e)) {
+            console.error("loadRecruitments failed:", e);
+        }
+        listEl.textContent = "募集一覧を読み込めませんでした。";
+        return;
+    }
+
+    if (snap.empty) {
+        listEl.textContent = "募集中の投稿はありません。";
+        return;
+    }
+
+    listEl.innerHTML = "";
+    snap.forEach((doc) => {
+        const data = doc.data() || {};
+        const item = document.createElement("div");
+        item.className = "recruitment-item";
+        item.innerHTML = `
+            <div class="recruitment-header">
+                <span class="recruitment-type">${escapeHtml(
+            formatRecruitmentTypeLabel(data.type)
+        )}</span>
+                <span class="recruitment-date">${escapeHtml(
+            data.date || ""
+        )}</span>
+            </div>
+            <div class="recruitment-title">${escapeHtml(
+            data.title || "募集"
+        )}</div>
+            <div class="recruitment-meta">
+                <span>${escapeHtml(data.place || "場所未定")}</span>
+                <span>投稿者：${escapeHtml(data.ownerName || "匿名")}</span>
+            </div>
+            <div class="recruitment-note">${escapeHtml(
+            data.note || ""
+        )}</div>
+            <button class="pill-button recruitment-apply-btn" type="button">
+                応募する
+            </button>
+            <div class="muted small recruitment-apply-msg"></div>
+        `;
+
+        const applyBtn = item.querySelector(".recruitment-apply-btn");
+        const msgEl = item.querySelector(".recruitment-apply-msg");
+        applyBtn?.addEventListener("click", async () => {
+            const uid = firebase.auth().currentUser?.uid;
+            if (!uid) {
+                if (msgEl) msgEl.textContent = "ログインが必要です。";
+                return;
+            }
+            applyBtn.disabled = true;
+            if (msgEl) msgEl.textContent = "応募中...";
+            try {
+                const teamId = getTeamId();
+                await col
+                    .recruitmentApplication(teamId, doc.id, uid)
+                    .set(
+                        {
+                            uid,
+                            displayName: getPreferredDisplayName(),
+                            createdAt: TS(),
+                        },
+                        { merge: true }
+                    );
+                if (msgEl)
+                    msgEl.textContent =
+                        "応募しました。投稿者からの連絡をお待ちください。";
+            } catch (e) {
+                if (!isPermissionDenied(e)) {
+                    console.error("recruitment apply failed:", e);
+                }
+                if (msgEl) msgEl.textContent = "応募に失敗しました。";
+            } finally {
+                applyBtn.disabled = false;
+            }
+        });
+
+        listEl.appendChild(item);
+    });
+}
+
+async function createRecruitmentFromUi() {
+    const title = ($("recruitment-title")?.value || "").trim();
+    const type = $("recruitment-type")?.value || "opponent";
+    const date = ($("recruitment-date")?.value || "").trim();
+    const place = ($("recruitment-place")?.value || "").trim();
+    const note = ($("recruitment-note")?.value || "").trim();
+    const msgEl = $("recruitment-create-msg");
+    if (msgEl) msgEl.textContent = "";
+
+    if (!title) {
+        if (msgEl) msgEl.textContent = "募集タイトルを入力してください。";
+        return;
+    }
+
+    const uid = firebase.auth().currentUser?.uid;
+    if (!uid) {
+        if (msgEl) msgEl.textContent = "ログインが必要です。";
+        return;
+    }
+
+    try {
+        await col.recruitments().add({
+            title,
+            type,
+            date,
+            place,
+            note,
+            ownerUid: uid,
+            ownerName: getPreferredDisplayName(),
+            createdAt: TS(),
+            updatedAt: TS(),
+        });
+        if (msgEl) msgEl.textContent = "募集を投稿しました。";
+        if ($("recruitment-title")) $("recruitment-title").value = "";
+        if ($("recruitment-date")) $("recruitment-date").value = "";
+        if ($("recruitment-place")) $("recruitment-place").value = "";
+        if ($("recruitment-note")) $("recruitment-note").value = "";
+        await loadRecruitments();
+    } catch (e) {
+        if (!isPermissionDenied(e)) {
+            console.error("createRecruitmentFromUi failed:", e);
+        }
+        if (msgEl) msgEl.textContent = "募集の投稿に失敗しました。";
+    }
 }
 
 // 一覧 ←→ 詳細 の戻るボタン
@@ -1980,6 +2130,19 @@ function setHtml(id, html) {
     if (el) el.innerHTML = html ?? "";
 }
 
+function formatRecruitmentTypeLabel(type) {
+    switch (type) {
+        case "opponent":
+            return "対戦相手募集";
+        case "helper":
+            return "助っ人募集";
+        case "member":
+            return "メンバー募集";
+        default:
+            return "募集";
+    }
+}
+
 function normalizeTeamId(raw) {
     return (raw || "").trim();
 }
@@ -2238,6 +2401,7 @@ function applyNotSelectedUi() {
     if (detailView) detailView.style.display = "none";
     // イベント一覧などは見せない（混乱防止）
     show($("event-list"), false);
+    show($("recruitment-board"), false);
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
@@ -2256,6 +2420,7 @@ async function applyGuestUi(teamDoc) {
     if (myBtn) myBtn.style.display = "none";
 
     show($("event-list"), false);
+    show($("recruitment-board"), false);
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
@@ -2376,6 +2541,7 @@ function applyMemberUi() {
     const myBtn = $("open-my-attendance-btn");
     if (myBtn) myBtn.style.display = "inline-block";
     show($("event-list"), true);
+    show($("recruitment-board"), true);
     show($("memo-card"), true);
     show($("stats-panel"), true);
     // admin-panel は role 判定後に isCurrentUserAdmin() で切替
@@ -2742,6 +2908,12 @@ function bindTeamUI() {
 
     // 参加申請
     $("join-request-btn")?.addEventListener("click", submitJoinRequest);
+
+    // 募集掲示板
+    $("recruitment-create-btn")?.addEventListener(
+        "click",
+        createRecruitmentFromUi
+    );
 }
 
 // 自分の所属チーム一覧を UI に反映する（安全版）
@@ -2917,6 +3089,7 @@ async function main() {
             detailView.style.display = "none";
 
             await loadEventList();
+            await loadRecruitments();
             setupMemoSection();
             showStatsPanelIfNeeded();
             await setupAdminUI();

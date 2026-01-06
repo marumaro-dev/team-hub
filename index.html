@@ -155,6 +155,46 @@
             <!-- イベント一覧 -->
             <div id="event-list">読み込み中…</div>
 
+            <!-- 募集掲示板 -->
+            <div id="recruitment-board" class="card" style="margin-top: 24px">
+                <h2>募集掲示板</h2>
+                <p style="font-size: 12px; margin-bottom: 8px">
+                    対戦相手・助っ人などの募集や応募ができます。
+                </p>
+                <div class="form-row">
+                    <label>募集タイトル</label>
+                    <input id="recruitment-title" type="text" placeholder="例：1/28 ナイター助っ人募集" />
+                </div>
+                <div class="form-row">
+                    <label>募集種別</label>
+                    <select id="recruitment-type">
+                        <option value="opponent">対戦相手募集</option>
+                        <option value="helper">助っ人募集</option>
+                        <option value="member">メンバー募集</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>日時</label>
+                    <input id="recruitment-date" type="text" placeholder="例：2026-01-28 19:00-21:00" />
+                </div>
+                <div class="form-row">
+                    <label>場所</label>
+                    <input id="recruitment-place" type="text" placeholder="例：錦糸公園" />
+                </div>
+                <div class="form-row">
+                    <label>詳細</label>
+                    <textarea id="recruitment-note" rows="3" placeholder="募集内容の詳細や条件など"></textarea>
+                </div>
+                <button id="recruitment-create-btn" class="pill-button" type="button">
+                    募集を投稿する
+                </button>
+                <div id="recruitment-create-msg" class="muted small"></div>
+
+                <div id="recruitment-list" style="margin-top: 16px">
+                    読み込み中…
+                </div>
+            </div>
+
             <!-- みんなのメモ -->
             <div id="memo-card" class="card" style="margin-top: 24px">
                 <h2>みんなのメモ</h2>
