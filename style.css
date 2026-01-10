@@ -104,6 +104,7 @@ p {
     margin: 4px 0;
 }
 
+
 /* イベント一覧 */
 .event-section {
     margin-top: 16px;
@@ -125,7 +126,7 @@ p {
 
 .event-row {
     display: grid;
-    grid-template-columns: 120px 1fr 120px 80px;
+    grid-template-columns: 120px 1fr 80px;
     gap: 8px;
     align-items: center;
     padding: 10px 12px;
@@ -156,113 +157,27 @@ p {
 .event-meta-line {
     font-size: 12px;
     color: #666;
-}
-
-.event-col-count {
-    text-align: center;
-    font-size: 12px;
 }
 
 .event-open-btn {
     width: 100%;
 }
 
-.event-accordion {
-    border: 1px solid #f1c7cf;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #fff;
-}
-
-.event-accordion summary {
+.event-attendance-summary {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #444;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px;
-    cursor: pointer;
-    background: #fdecef;
-    font-weight: 700;
-    list-style: none;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
-.event-accordion summary::-webkit-details-marker {
+.event-row.is-hidden {
     display: none;
 }
 
-.event-accordion-title {
-    color: #b12234;
-}
-
-.event-accordion-toggle {
-    font-size: 12px;
-    color: #b12234;
-}
-
-.event-accordion[open] summary {
-    border-bottom: 1px solid #f4d7dd;
-
-}
-
-/* イベント一覧 */
-.event-section {
-    margin-top: 16px;
-}
-
-.event-section-title {
-    font-size: 16px;
-    margin-bottom: 8px;
-    border-left: 4px solid var(--accent);
-    padding-left: 8px;
-}
-
-.event-table {
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid #f1c7cf;
-    overflow: hidden;
-}
-
-.event-row {
-    display: grid;
-    grid-template-columns: 120px 1fr 120px 80px;
-    gap: 8px;
-    align-items: center;
-    padding: 10px 12px;
-    border-bottom: 1px solid #f4d7dd;
-    font-size: 13px;
-}
-
-.event-row:last-child {
-    border-bottom: none;
-}
-
-.event-row--header {
-    background: #fbe7ec;
-    font-weight: 700;
-}
-
-.event-row--empty {
-    padding: 14px 12px;
-    font-size: 13px;
-    color: #666;
-}
-
-.event-title-line {
-    font-weight: 700;
-    margin-bottom: 2px;
-}
-
-.event-meta-line {
-    font-size: 12px;
-    color: #666;
-}
-
-.event-col-count {
-    text-align: center;
-    font-size: 12px;
-}
-
-.event-open-btn {
+.event-toggle-btn {
+    margin-top: 8px;
     width: 100%;
 }
 
@@ -458,18 +373,38 @@ th {
 
 /* 一括出欠登録画面用ボタン */
 .my-att-btn {
-    min-width: 32px;
-    padding: 4px 8px;
+    min-width: 56px;
+    padding: 6px 10px;
     border-radius: 999px;
-    border: 1px solid #ccc;
+    border: 1px solid #ddd;
     background: #f7f7f7;
     cursor: pointer;
+    font-size: 13px;
+}
+
+.my-att-btn.is-selected[data-status="present"] {
+    background: #c8e6c9;
+    border-color: #1b5e20;
+    color: #1b5e20;
+}
+
+.my-att-btn.is-selected[data-status="late"] {
+    background: #fff3cd;
+    border-color: #8d6e00;
+    color: #8d6e00;
 }
 
 /* 選択されているボタン */
-.my-att-btn.selected {
-    background: #ffe5ec;
-    border-color: #e25c7c;
+.my-att-btn.is-selected[data-status="undecided"] {
+    background: #e3f2fd;
+    border-color: #0d47a1;
+    color: #0d47a1;
+}
+
+.my-att-btn.is-selected[data-status="absent"] {
+    background: #ffcdd2;
+    border-color: #b71c1c;
+    color: #b71c1c;
 }
 
 /* 「現在：◎ 出席」の表示部分 */
@@ -786,36 +721,6 @@ small,
 }
 
 /* --- 自分の出欠一覧ボタン --- */
-
-.my-att-btn {
-    min-width: 32px;
-    border-radius: 16px;
-    border: 1px solid #ddd;
-    padding: 2px 6px;
-    background: #fff;
-    font-size: 14px;
-}
-
-.my-att-btn.is-present {
-    background: #e6f6e9;
-    border-color: #5cb85c;
-}
-
-.my-att-btn.is-late {
-    background: #fff5d6;
-    border-color: #f0ad4e;
-}
-
-.my-att-btn.is-undecided {
-    background: #e5f0ff;
-    border-color: #5bc0de;
-}
-
-.my-att-btn.is-absent {
-    background: #ffe3e3;
-    border-color: #d9534f;
-}
-
 .my-att-status-label {
     margin-left: 4px;
     font-size: 12px;

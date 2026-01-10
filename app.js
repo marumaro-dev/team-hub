@@ -534,7 +534,13 @@ async function loadMyAttendance() {
     eventsSnap.forEach((doc) => {
         const event = { id: doc.id, ...(doc.data() || {}) };
         const my = respByEvent[event.id] || {};
-        const current = my.status || "unknown";
+        const current = my.status || "undecided";
+        const statusLabelMap = {
+            present: "参加",
+            late: "遅刻",
+            undecided: "未定",
+            absent: "欠席",
+        };
 
         const row = document.createElement("div");
         row.className = "my-attendance-row";
@@ -544,14 +550,19 @@ async function loadMyAttendance() {
             event.time || ""
         )} / ${escapeHtml(event.place || "")}</div>
       <div class="event-actions">
-        <button class="att-btn" data-status="present">参加</button>
-        <button class="att-btn" data-status="late">遅刻</button>
-        <button class="att-btn" data-status="absent">欠席</button>
-        <span class="current-status">現在: ${escapeHtml(current)}</span>
+        <button class="my-att-btn" data-status="present">参加</button>
+        <button class="my-att-btn" data-status="late">遅刻</button>
+        <button class="my-att-btn" data-status="undecided">未定</button>
+        <button class="my-att-btn" data-status="absent">欠席</button>
+        <span class="current-status">現在: ${statusLabelMap[current] || "未定"
+            }</span>
       </div>
     `;
 
-        row.querySelectorAll(".att-btn").forEach((btn) => {
+        row.querySelectorAll(".my-att-btn").forEach((btn) => {
+            if (btn.dataset.status === current) {
+                btn.classList.add("is-selected");
+            }
             btn.addEventListener("click", async () => {
                 const status = btn.dataset.status;
                 await saveResponseFor(event.id, currentUser.uid, status, "");
@@ -671,7 +682,11 @@ async function loadEventList() {
 
     list.innerHTML = "";
 
-    const renderSection = (title, items, { collapsible = false } = {}) => {
+    const renderSection = (
+        title,
+        items,
+        { collapsible = false, limit = null } = {}
+    ) => {
         const section = document.createElement("section");
         section.className = "event-section";
 
@@ -685,7 +700,6 @@ async function loadEventList() {
             <div class="event-row event-row--header">
                 <div class="event-col event-col-date">日付</div>
                 <div class="event-col event-col-title">内容</div>
-                <div class="event-col event-col-count">参加人数</div>
                 <div class="event-col event-col-action">操作</div>
             </div>
         `;
@@ -710,12 +724,12 @@ async function loadEventList() {
                     <div class="event-col event-col-title">
                         <div class="event-title-line">${escapeHtml(event.title || "出欠確認")}</div>
                         <div class="event-meta-line">
-                            ${escapeHtml(event.time || "未定")} /
+                            ${escapeHtml(event.time || "未定")}<br />
                             ${escapeHtml(event.place || "未定")}
                         </div>
-                    </div>
-                    <div class="event-col event-col-count">
-                        <span class="event-count-loading">集計中…</span>
+                        <div class="event-attendance-summary">
+                            <span class="event-count-loading">集計中…</span>
+                        </div>
                     </div>
                     <div class="event-col event-col-action">
                         <button class="pill-button event-open-btn" type="button">開く</button>
@@ -765,11 +779,38 @@ async function loadEventList() {
             section.appendChild(table);
         }
 
+        if (!collapsible && limit && items.length > limit) {
+            const toggleBtn = document.createElement("button");
+            toggleBtn.className = "ghost-button event-toggle-btn";
+            toggleBtn.type = "button";
+            toggleBtn.textContent = "全て表示";
+            toggleBtn.addEventListener("click", () => {
+                const isExpanded = toggleBtn.dataset.expanded === "true";
+                toggleBtn.dataset.expanded = (!isExpanded).toString();
+                toggleBtn.textContent = isExpanded ? "全て表示" : "折りたたむ";
+                section
+                    .querySelectorAll(".event-row.is-collapsed")
+                    .forEach((row) => {
+                        row.classList.toggle("is-hidden", !isExpanded);
+                    });
+            });
+            section.appendChild(toggleBtn);
+        }
+
         addRows();
+
+        if (!collapsible && limit && items.length > limit) {
+            const rows = table.querySelectorAll(".event-row[data-event-id]");
+            rows.forEach((row, index) => {
+                if (index >= limit) {
+                    row.classList.add("is-collapsed", "is-hidden");
+                }
+            });
+        }
         return section;
     };
 
-    list.appendChild(renderSection("これからのイベント", upcoming));
+    list.appendChild(renderSection("これからのイベント", upcoming, { limit: 5 }));
     const pastSection = renderSection("過去のイベント", past, {
         collapsible: true,
     });
@@ -779,19 +820,37 @@ async function loadEventList() {
     await Promise.all(
         Array.from(rows).map(async (row) => {
             const eventId = row.dataset.eventId;
-            const countEl = row.querySelector(".event-col-count");
+            const countEl = row.querySelector(".event-attendance-summary");
             if (!eventId || !countEl) return;
             try {
                 const respSnap = await col.responses(eventId).get();
-                let present = 0;
-                let late = 0;
+                const presentNames = [];
+                const lateNames = [];
+                let undecidedCount = 0;
+                let absentCount = 0;
                 respSnap.forEach((doc) => {
-                    const status = doc.data()?.status;
-                    if (status === "present") present += 1;
-                    if (status === "late") late += 1;
+                    const data = doc.data() || {};
+                    const status = data.status;
+                    const name = data.displayName || data.uid || "匿名";
+                    if (status === "present") presentNames.push(name);
+                    else if (status === "late") lateNames.push(name);
+                    else if (status === "absent") absentCount += 1;
+                    else undecidedCount += 1;
                 });
-                const total = present + late;
-                countEl.textContent = `${total}人 (◎${present}/○${late})`;
+                const presentText = presentNames.length
+                    ? `◎ ${presentNames.join("、")}`
+                    : "◎ なし";
+                const lateText = lateNames.length
+                    ? `〇 ${lateNames.join("、")}`
+                    : "〇 なし";
+                const undecidedText = `△ ${undecidedCount}人`;
+                const absentText = `✖ ${absentCount}人`;
+                countEl.innerHTML = `
+                    <span>${escapeHtml(presentText)}</span>
+                    <span>${escapeHtml(lateText)}</span>
+                    <span>${escapeHtml(undecidedText)}</span>
+                    <span>${escapeHtml(absentText)}</span>
+                `;
             } catch (e) {
                 if (!isPermissionDenied(e)) {
                     console.warn("attendance summary failed:", e);
@@ -806,6 +865,11 @@ async function loadRecruitments() {
     const listEl = document.getElementById("recruitment-list");
     if (!listEl) return;
     listEl.textContent = "読み込み中...";
+    const teamId = getTeamId();
+    if (!teamId) {
+        listEl.textContent = "teamId が未選択です。";
+        return;
+    }
 
     let snap;
     try {
@@ -906,6 +970,7 @@ async function loadRecruitments() {
 }
 
 async function createRecruitmentFromUi() {
+    const teamId = getTeamId();
     const title = ($("recruitment-title")?.value || "").trim();
     const posterType = $("recruitment-poster-type")?.value || "team";
     const type = $("recruitment-type")?.value || "opponent";
@@ -919,6 +984,11 @@ async function createRecruitmentFromUi() {
 
     if (!title) {
         if (msgEl) msgEl.textContent = "募集タイトルを入力してください。";
+        return;
+    }
+    if (!teamId) {
+        if (msgEl)
+            msgEl.textContent = "teamId が未選択です。";
         return;
     }
     if (!prefecture || !city) {
@@ -940,6 +1010,7 @@ async function createRecruitmentFromUi() {
 
     try {
         await col.recruitments().add({
+            teamId,
             title,
             type,
             posterType,
