@@ -72,11 +72,6 @@ let currentEventId = null; // 選択中イベントID
 let currentEventData = null; // 現在表示中のイベントデータ
 let lineupCandidates = []; // 出席（◎/〇）メンバー一覧
 let lineupStarting = []; // 保存済みスタメン
-let currentUser = null; // firebase.auth().currentUser
-let currentUserRole = "member";
-let canRequest = false;
-let requestMessage = "";
-let joinRequestWatcherUnsub = null;
 
 
 // ===== 追加：teamId（URLで切り替え可能）=====
@@ -206,6 +201,12 @@ const col = {
 };
 
 const TS = firebase.firestore.FieldValue.serverTimestamp;
+let currentUser = null; // firebase.auth().currentUser
+let currentUserRole = "member";
+// Guard variables to avoid ReferenceError if legacy/global code accesses them.
+let canRequest = false;
+let requestMessage = "";
+let joinRequestWatcherUnsub = null;
 
 // LIFF（任意）：表示名取得に使う（Firebase Auth の uid とは別）
 let liffProfile = null; // { userId, displayName }
@@ -829,6 +830,9 @@ async function loadRecruitments() {
     listEl.innerHTML = "";
     snap.forEach((doc) => {
         const data = doc.data() || {};
+        const location = [data.prefecture, data.city]
+            .filter(Boolean)
+            .join(" ");
         const item = document.createElement("div");
         item.className = "recruitment-item";
         item.innerHTML = `
@@ -844,8 +848,14 @@ async function loadRecruitments() {
             data.title || "募集"
         )}</div>
             <div class="recruitment-meta">
+                <span>${escapeHtml(location || "地域未設定")}</span>
                 <span>${escapeHtml(data.place || "場所未定")}</span>
-                <span>投稿者：${escapeHtml(data.ownerName || "匿名")}</span>
+                <span>
+                    ${escapeHtml(
+            formatRecruitmentPosterLabel(data.posterType)
+        )}：
+                    ${escapeHtml(data.ownerName || "匿名")}
+                </span>
             </div>
             <div class="recruitment-note">${escapeHtml(
             data.note || ""
@@ -897,7 +907,10 @@ async function loadRecruitments() {
 
 async function createRecruitmentFromUi() {
     const title = ($("recruitment-title")?.value || "").trim();
+    const posterType = $("recruitment-poster-type")?.value || "team";
     const type = $("recruitment-type")?.value || "opponent";
+    const prefecture = ($("recruitment-prefecture")?.value || "").trim();
+    const city = ($("recruitment-city")?.value || "").trim();
     const date = ($("recruitment-date")?.value || "").trim();
     const place = ($("recruitment-place")?.value || "").trim();
     const note = ($("recruitment-note")?.value || "").trim();
@@ -908,6 +921,11 @@ async function createRecruitmentFromUi() {
         if (msgEl) msgEl.textContent = "募集タイトルを入力してください。";
         return;
     }
+    if (!prefecture || !city) {
+        if (msgEl)
+            msgEl.textContent = "都道府県と市区町村を入力してください。";
+        return;
+    }
 
     const uid = firebase.auth().currentUser?.uid;
     if (!uid) {
@@ -915,20 +933,30 @@ async function createRecruitmentFromUi() {
         return;
     }
 
+    const ownerName =
+        posterType === "team"
+            ? getCurrentTeamName() || getPreferredDisplayName()
+            : getPreferredDisplayName();
+
     try {
         await col.recruitments().add({
             title,
             type,
+            posterType,
+            prefecture,
+            city,
             date,
             place,
             note,
             ownerUid: uid,
-            ownerName: getPreferredDisplayName(),
+            ownerName,
             createdAt: TS(),
             updatedAt: TS(),
         });
         if (msgEl) msgEl.textContent = "募集を投稿しました。";
         if ($("recruitment-title")) $("recruitment-title").value = "";
+        if ($("recruitment-prefecture")) $("recruitment-prefecture").value = "";
+        if ($("recruitment-city")) $("recruitment-city").value = "";
         if ($("recruitment-date")) $("recruitment-date").value = "";
         if ($("recruitment-place")) $("recruitment-place").value = "";
         if ($("recruitment-note")) $("recruitment-note").value = "";
@@ -2130,6 +2158,13 @@ function setHtml(id, html) {
     if (el) el.innerHTML = html ?? "";
 }
 
+function getCurrentTeamName() {
+    const el = $("current-team-label");
+    const name = el?.textContent?.trim();
+    if (!name || name === "未選択") return "";
+    return name;
+}
+
 function formatRecruitmentTypeLabel(type) {
     switch (type) {
         case "opponent":
@@ -2140,6 +2175,17 @@ function formatRecruitmentTypeLabel(type) {
             return "メンバー募集";
         default:
             return "募集";
+    }
+}
+
+function formatRecruitmentPosterLabel(type) {
+    switch (type) {
+        case "team":
+            return "チーム";
+        case "individual":
+            return "個人";
+        default:
+            return "投稿";
     }
 }
 
@@ -2373,6 +2419,8 @@ async function refreshMyTeamsList() {
 
         return myTeams;
     } catch (e) {
+        // 参加チームが無いユーザーは rules 的に members を読めず PermissionDenied になることがあるので、
+        // ここでは「無所属」として扱う（初回体験を止めない）
         if (!isPermissionDenied(e)) {
             console.warn("refreshMyTeamsList failed (ignored):", e);
         }
@@ -2401,7 +2449,7 @@ function applyNotSelectedUi() {
     if (detailView) detailView.style.display = "none";
     // イベント一覧などは見せない（混乱防止）
     show($("event-list"), false);
-    show($("recruitment-board"), false);
+    show($("recruitment-board"), true);
     show($("memo-card"), false);
     show($("stats-panel"), false);
     show($("admin-panel"), false);
@@ -2504,6 +2552,7 @@ async function applyGuestUi(teamDoc) {
     } else {
         setText("join-request-msg", "");
     }
+    await loadRecruitments();
 }
 
 function bindJoinRequestUI() {
@@ -2629,6 +2678,7 @@ async function createTeamFromUi() {
                 "teamId は英数字・ハイフン・アンダースコアのみ使用できます。";
         return;
     }
+
     const teamId =
         requestedTeamId ||
         "t_" +

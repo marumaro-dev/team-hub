@@ -201,7 +201,8 @@ p {
 .event-accordion[open] summary {
     border-bottom: 1px solid #f4d7dd;
 
-}/* イベント一覧 */
+}
+
 /* イベント一覧 */
 .event-section {
     margin-top: 16px;
@@ -328,6 +329,10 @@ p {
 .recruitment-type {
     color: #b12234;
     font-weight: 700;
+}
+
+.recruitment-date {
+    font-weight: 600;
 }
 
 .recruitment-title {

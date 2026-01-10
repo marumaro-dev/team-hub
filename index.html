@@ -166,12 +166,27 @@
                     <input id="recruitment-title" type="text" placeholder="例：1/28 ナイター助っ人募集" />
                 </div>
                 <div class="form-row">
+                    <label>投稿者区分</label>
+                    <select id="recruitment-poster-type">
+                        <option value="team">チーム</option>
+                        <option value="individual">個人</option>
+                    </select>
+                </div>
+                <div class="form-row">
                     <label>募集種別</label>
                     <select id="recruitment-type">
                         <option value="opponent">対戦相手募集</option>
                         <option value="helper">助っ人募集</option>
                         <option value="member">メンバー募集</option>
                     </select>
+                </div>
+                <div class="form-row">
+                    <label>都道府県</label>
+                    <input id="recruitment-prefecture" type="text" placeholder="例：東京都" />
+                </div>
+                <div class="form-row">
+                    <label>市区町村</label>
+                    <input id="recruitment-city" type="text" placeholder="例：練馬区" />
                 </div>
                 <div class="form-row">
                     <label>日時</label>
