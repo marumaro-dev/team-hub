@@ -976,7 +976,9 @@ async function loadRecruitments() {
                 if (!isPermissionDenied(e)) {
                     console.error("recruitment apply failed:", e);
                 }
-                if (msgEl) msgEl.textContent = "応募に失敗しました。";
+                const details = e?.code ? ` (${e.code})` : "";
+                if (msgEl)
+                    msgEl.textContent = `応募に失敗しました。${details}`;
             } finally {
                 applyBtn.disabled = false;
             }
@@ -2658,6 +2660,8 @@ async function applyGuestUi(teamDoc) {
     setText("recruitment-create-msg", "投稿はチーム参加後に利用できます。");
 
     await loadRecruitments();
+    const listView = document.getElementById("event-list-view");
+    if (listView) listView.style.display = "block";
 }
 
 function bindJoinRequestUI() {
