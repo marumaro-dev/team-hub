@@ -896,7 +896,13 @@ async function loadRecruitments() {
             .get();
     } catch (e) {
         if (!isPermissionDenied(e)) {
-            console.error("loadRecruitments failed:", e);
+            console.error("loadRecruitments failed", {
+                code: e?.code,
+                message: e?.message,
+                name: e?.name,
+                stack: e?.stack,
+            });
+
         }
         listEl.textContent = "募集一覧を読み込めませんでした。";
         return;
@@ -1057,7 +1063,13 @@ async function createRecruitmentFromUi() {
         await loadRecruitments();
     } catch (e) {
         if (!isPermissionDenied(e)) {
-            console.error("createRecruitmentFromUi failed:", e);
+            console.error("createRecruitmentFromUi failed", {
+                code: e?.code,
+                message: e?.message,
+                name: e?.name,
+                stack: e?.stack,
+            });
+
         }
         if (msgEl) msgEl.textContent = "募集の投稿に失敗しました。";
     }
