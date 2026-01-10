@@ -679,6 +679,22 @@ async function loadEventList() {
             upcoming.push(event);
         }
     });
+    upcoming.sort((a, b) => {
+        const aDate = parseEventDate(a.date || "");
+        const bDate = parseEventDate(b.date || "");
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+        return aDate - bDate;
+    });
+    past.sort((a, b) => {
+        const aDate = parseEventDate(a.date || "");
+        const bDate = parseEventDate(b.date || "");
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+        return bDate - aDate;
+    });
 
     list.innerHTML = "";
 
@@ -1000,6 +1016,13 @@ async function createRecruitmentFromUi() {
     const uid = firebase.auth().currentUser?.uid;
     if (!uid) {
         if (msgEl) msgEl.textContent = "ログインが必要です。";
+        return;
+    }
+    const isMemberNow = await loadMyMemberInfoReadOnly(teamId);
+    if (!isMemberNow || currentUserRole === "guest") {
+        if (msgEl)
+            msgEl.textContent =
+                "募集投稿はチーム参加後に利用できます。";
         return;
     }
 
@@ -2623,6 +2646,12 @@ async function applyGuestUi(teamDoc) {
     } else {
         setText("join-request-msg", "");
     }
+    const recruitBtn = $("recruitment-create-btn");
+    if (recruitBtn) {
+        recruitBtn.disabled = true;
+    }
+    setText("recruitment-create-msg", "投稿はチーム参加後に利用できます。");
+
     await loadRecruitments();
 }
 
@@ -2664,6 +2693,10 @@ function applyMemberUi() {
     show($("recruitment-board"), true);
     show($("memo-card"), true);
     show($("stats-panel"), true);
+    const recruitBtn = $("recruitment-create-btn");
+    if (recruitBtn) {
+        recruitBtn.disabled = false;
+    }
     // admin-panel は role 判定後に isCurrentUserAdmin() で切替
 }
 
@@ -2986,7 +3019,6 @@ async function rejectJoinRequest(uid) {
         alert("却下に失敗しました。");
     }
 }
-
 
 function bindTeamUI() {
     // パネル開閉
